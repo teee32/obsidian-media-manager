@@ -9,6 +9,9 @@ export default class ImageManagerPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		// 加载样式
+		this.addStyle();
+
 		// 注册图片库视图
 		this.registerView(VIEW_TYPE_IMAGE_LIBRARY, (leaf) => new ImageLibraryView(leaf, this));
 
