@@ -27,12 +27,11 @@
 
 ## 安装方法
 
-### 从Obsidian插件市场安装（推荐）
-1. 打开Obsidian
-2. 进入设置 → 第三方插件
-3. 关闭安全模式（如果需要）
-4. 在社区插件中搜索 "Media Manager"
-5. 点击安装并启用
+### 使用 BRAT 安装（推荐）
+1. 安装 BRAT 插件（社区插件搜索 "BRAT"）
+2. 打开 BRAT 设置，点击 "Add Beta plugin"
+3. 输入 `https://github.com/teee32/obsidian-media-manager`
+4. 启用 "Media Manager" 插件
 
 ### 手动安装
 1. 从GitHub releases下载最新版本
@@ -84,7 +83,7 @@
 ## 支持与反馈
 
 如果你遇到问题或有功能建议，请提交Issue到：
-https://github.com/your-repo/obsidian-media-manager/issues
+https://github.com/teee32/obsidian-media-manager/issues
 
 ## 许可证
 

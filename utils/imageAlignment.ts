@@ -1,10 +1,10 @@
-export type ImageAlignment = 'left' | 'center' | 'right';
+export type AlignmentType = 'left' | 'center' | 'right';
 
 export class ImageAlignment {
 	/**
 	 * 为图片Markdown语法添加对齐属性
 	 */
-	static applyAlignment(markdown: string, alignment: ImageAlignment): string {
+	static applyAlignment(markdown: string, alignment: AlignmentType): string {
 		// 检查是否是图片语法
 		const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/;
 		const match = markdown.match(imageRegex);
@@ -12,9 +12,6 @@ export class ImageAlignment {
 		if (!match) {
 			return markdown;
 		}
-
-		const altText = match[1];
-		const imagePath = match[2];
 
 		// 如果已有对齐属性，先移除
 		let cleanMarkdown = markdown.replace(/{\s*align\s*:\s*\w+\s*}/gi, '').trim();
@@ -34,12 +31,13 @@ export class ImageAlignment {
 	/**
 	 * 从图片语法中提取对齐方式
 	 */
-	static getAlignment(markdown: string): ImageAlignment | null {
-		const alignMatch = markdown.match(/{\s*align\s*:\s*(\w+)\s*}/i);
+	static getAlignment(markdown: string): AlignmentType | null {
+		// 匹配 {align=center} 或 { align=center } 风格
+		const alignMatch = markdown.match(/{\s*align\s*=\s*(\w+)\s*}/i);
 		if (alignMatch) {
 			const alignment = alignMatch[1].toLowerCase();
 			if (alignment === 'left' || alignment === 'center' || alignment === 'right') {
-				return alignment;
+				return alignment as AlignmentType;
 			}
 		}
 		return null;
@@ -48,8 +46,8 @@ export class ImageAlignment {
 	/**
 	 * 生成带对齐样式的HTML图片标签
 	 */
-	static toHTML(imagePath: string, altText: string = '', alignment: ImageAlignment = 'center'): string {
-		const styleMap: Record<ImageAlignment, string> = {
+	static toHTML(imagePath: string, altText: string = '', alignment: AlignmentType = 'center'): string {
+		const styleMap: Record<AlignmentType, string> = {
 			'left': 'display: block; margin-left: 0; margin-right: auto;',
 			'center': 'display: block; margin-left: auto; margin-right: auto;',
 			'right': 'display: block; margin-left: auto; margin-right: 0;'

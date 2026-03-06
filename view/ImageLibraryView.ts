@@ -1,4 +1,4 @@
-import { TFile, View, WorkspaceLeaf, setIcon, Menu, Notice } from 'obsidian';
+import { TFile, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
 
 export const VIEW_TYPE_IMAGE_LIBRARY = 'image-library-view';
@@ -15,7 +15,7 @@ interface ImageItem {
 export class ImageLibraryView extends View {
 	plugin: ImageManagerPlugin;
 	images: ImageItem[] = [];
-	private contentEl: HTMLElement;
+	private contentEl!: HTMLElement;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ImageManagerPlugin) {
 		super(leaf);
@@ -27,7 +27,7 @@ export class ImageLibraryView extends View {
 	}
 
 	getDisplayText() {
-		return '图片库';
+		return '媒体库';
 	}
 
 	async onOpen() {
@@ -50,14 +50,7 @@ export class ImageLibraryView extends View {
 		const size = sizeMap[this.plugin.settings.thumbnailSize] || 'medium';
 		this.contentEl.empty();
 
-		// 创建头部
-		this.renderHeader();
-
-		// 创建图片网格容器
-		const grid = this.contentEl.createDiv({ cls: 'image-grid' });
-		grid.addClass(`image-grid-${size}`);
-
-		// 获取所有图片
+		// 先获取所有图片数据
 		const imageFiles = await this.plugin.getAllImageFiles();
 
 		// 过滤图片文件夹（如果设置了）
@@ -76,6 +69,13 @@ export class ImageLibraryView extends View {
 
 		this.sortImages();
 
+		// 创建头部（在获取数据之后渲染）
+		this.renderHeader();
+
+		// 创建图片网格容器
+		const grid = this.contentEl.createDiv({ cls: 'image-grid' });
+		grid.addClass(`image-grid-${size}`);
+
 		// 渲染图片
 		for (const image of this.images) {
 			this.renderImageItem(grid, image);
@@ -84,7 +84,7 @@ export class ImageLibraryView extends View {
 		if (this.images.length === 0) {
 			this.contentEl.createDiv({
 				cls: 'empty-state',
-				text: '未找到图片文件'
+				text: '未找到媒体文件'
 			});
 		}
 	}
@@ -92,10 +92,10 @@ export class ImageLibraryView extends View {
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'image-library-header' });
 
-		header.createEl('h2', { text: '图片库' });
+		header.createEl('h2', { text: '媒体库' });
 
 		const stats = header.createDiv({ cls: 'image-stats' });
-		stats.createSpan({ text: `共 ${this.images.length} 张图片` });
+		stats.createSpan({ text: `共 ${this.images.length} 个媒体文件` });
 
 		// 刷新按钮
 		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
@@ -104,9 +104,17 @@ export class ImageLibraryView extends View {
 
 		// 排序选项
 		const sortSelect = header.createEl('select', { cls: 'sort-select' });
-		sortSelect.createEl('option', { value: 'name', text: '名称', selected: this.plugin.settings.sortBy === 'name' });
-		sortSelect.createEl('option', { value: 'date', text: '日期', selected: this.plugin.settings.sortBy === 'date' });
-		sortSelect.createEl('option', { value: 'size', text: '大小', selected: this.plugin.settings.sortBy === 'size' });
+		const options = [
+			{ value: 'name', text: '名称' },
+			{ value: 'date', text: '日期' },
+			{ value: 'size', text: '大小' }
+		];
+		options.forEach(opt => {
+			const option = sortSelect.createEl('option', { value: opt.value, text: opt.text });
+			if (this.plugin.settings.sortBy === opt.value) {
+				option.setAttribute('selected', 'selected');
+			}
+		});
 		sortSelect.addEventListener('change', async (e) => {
 			const target = e.target as HTMLSelectElement;
 			this.plugin.settings.sortBy = target.value as 'name' | 'date' | 'size';
