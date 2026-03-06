@@ -1,4 +1,4 @@
-# Obsidian Media Manager
+# Obsidian Media Toolkit
 
 一个功能强大的 Obsidian 媒体管理插件，帮助你更好地管理和组织笔记中的媒体文件。
 
@@ -44,13 +44,13 @@
 ### 使用 BRAT 安装（推荐）
 1. 安装 BRAT 插件（社区插件搜索 "BRAT"）
 2. 打开 BRAT 设置，点击 "Add Beta plugin"
-3. 输入 `https://github.com/teee32/obsidian-media-manager`
-4. 启用 "Media Manager" 插件
+3. 输入 `https://github.com/teee32/obsidian-media-toolkit`
+4. 启用 "Media Toolkit" 插件
 
 ### 手动安装
 1. 克隆仓库或下载源码
 2. 进入项目目录，运行 `npm install` 和 `npm run build`
-3. 将 `dist` 目录下的文件复制到你的 Obsidian Vault 的 `.obsidian/plugins/obsidian-media-manager/` 目录下
+3. 将 `dist` 目录下的文件复制到你的 Obsidian Vault 的 `.obsidian/plugins/obsidian-media-toolkit/` 目录下
 4. 重启 Obsidian
 5. 在第三方插件设置中启用插件
 
@@ -105,7 +105,7 @@
 ## 支持与反馈
 
 如果你遇到问题或有功能建议，请提交 Issue 到：
-https://github.com/teee32/obsidian-media-manager/issues
+https://github.com/teee32/obsidian-media-toolkit/issues
 
 ## 许可证
 

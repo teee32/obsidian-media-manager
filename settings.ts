@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: ImageManagerSettings = {
 	autoRefresh: true,
 	defaultAlignment: 'center',
 	useTrashFolder: true,
-	trashFolder: '.obsidian-media-manager-trash',
+	trashFolder: '.obsidian-media-toolkit-trash',
 	autoCleanupTrash: false,
 	trashCleanupDays: 30,
 	// 新增默认值
@@ -57,7 +57,7 @@ export class SettingsTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: '媒体管理插件设置' });
+		containerEl.createEl('h2', { text: '媒体工具箱插件设置' });
 
 		// 媒体文件夹设置
 		new Setting(containerEl)
@@ -170,7 +170,7 @@ export class SettingsTab extends PluginSettingTab {
 			.setName('隔离文件夹')
 			.setDesc('隔离文件夹的路径（相对路径）')
 			.addText(text => text
-				.setPlaceholder('.obsidian-media-manager-trash')
+				.setPlaceholder('.obsidian-media-toolkit-trash')
 				.setValue(this.plugin.settings.trashFolder)
 				.onChange(async (value) => {
 					this.plugin.settings.trashFolder = value;
