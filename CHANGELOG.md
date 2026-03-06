@@ -7,61 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-03-06
+
 ### Added
-- Initial release
+- 中英双语国际化支持（zh/en/system跟随系统）
+- 大Vault扫描进度提示
+- 批量删除操作成功/失败计数反馈
 
 ### Changed
-- (list changes here)
+- 大Vault扫描性能优化：添加缓存机制（5分钟）+ 分批处理
+- 隔离文件夹文件名格式变更（使用双下划线分隔符）
 
 ### Fixed
-- (list bug fixes here)
+- 修复隔离文件夹文件名解析Bug（文件名含下划线时错误）
+- 修复MediaPreviewModal键盘事件监听器内存泄漏
+- 修复样式重复添加问题
 
 ### Removed
-- (list removed features here)
+- 清理内部开发文件
 
 ---
 
-## [1.0.0] - YYYY-MM-DD
+## [1.0.0] - 2026-03-06
 
 ### Added
 - 图片对齐功能（居左、居中、居右）
 - 图片库网格视图
 - 未引用图片检测功能
-
-### Changed
-- (list changes here)
-
-### Fixed
-- (list bug fixes here)
-
-### Removed
-- (list removed features here)
-
----
-
-## [1.1.0] - YYYY-MM-DD
-
-### Added
-- (new features)
-
-### Changed
-- (changes to existing features)
-
-### Fixed
-- (bug fixes)
-
----
-
-## [1.2.0] - YYYY-MM-DD
-
-### Added
-- (new features)
-
-### Changed
-- (changes to existing features)
-
-### Fixed
-- (bug fixes)
+- 隔离文件夹管理
+- 媒体预览Modal
 
 ---
 
