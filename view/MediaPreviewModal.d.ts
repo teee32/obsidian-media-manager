@@ -5,6 +5,7 @@ export declare class MediaPreviewModal extends Modal {
     file: TFile;
     currentIndex: number;
     allFiles: TFile[];
+    private keydownHandler;
     constructor(app: any, plugin: ImageManagerPlugin, file: TFile, allFiles?: TFile[]);
     onOpen(): void;
     /**
