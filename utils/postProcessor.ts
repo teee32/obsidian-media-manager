@@ -1,6 +1,6 @@
-import { MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer } from 'obsidian';
+import { MarkdownPostProcessorContext, TFile } from 'obsidian';
 import ImageManagerPlugin from '../main';
-import { ImageAlignment, AlignmentType } from './imageAlignment';
+import { AlignmentType } from './imageAlignment';
 
 /**
  * 图片对齐 PostProcessor
@@ -18,15 +18,15 @@ export class AlignmentPostProcessor {
 	 */
 	register() {
 		this.plugin.registerMarkdownPostProcessor((element, context) => {
-			this.processAlignment(element, context);
+			this.processAlignment(element);
 		});
 	}
 
 	/**
 	 * 处理对齐语法
 	 */
-	private processAlignment(element: HTMLElement, context: MarkdownPostProcessorContext) {
-		// 查找所有包含对齐标记的代码块或段落
+	private processAlignment(element: HTMLElement) {
+		// 查找所有包含对齐标记的文本节点
 		const walker = document.createTreeWalker(
 			element,
 			NodeFilter.SHOW_TEXT,
@@ -54,8 +54,6 @@ export class AlignmentPostProcessor {
 	 */
 	private processNode(node: Text, parent: HTMLElement) {
 		const text = node.textContent || '';
-		const container = document.createElement('div');
-		container.className = 'alignment-block';
 
 		// 匹配对齐块: ===center=== ... === 或 ===left=== ... === 等
 		const blockRegex = /===\s*(center|left|right)\s*===\s*([\s\S]*?)\s*===/gi;
@@ -78,13 +76,8 @@ export class AlignmentPostProcessor {
 			alignContainer.style.textAlign = alignment;
 			alignContainer.style.margin = '10px 0';
 
-			// 渲染内容
-			if (content.includes('![[') || content.includes('![') || content.includes('[[')) {
-				// 处理图片链接
-				this.renderImage(content, alignContainer);
-			} else {
-				alignContainer.textContent = content;
-			}
+			// 渲染内容 - 同步处理
+			this.renderImageSync(content, alignContainer);
 
 			fragment.appendChild(alignContainer);
 			lastIndex = match.index + match[0].length;
@@ -107,13 +100,12 @@ export class AlignmentPostProcessor {
 	}
 
 	/**
-	 * 渲染图片
+	 * 同步渲染图片
 	 */
-	private async renderImage(content: string, container: HTMLElement) {
+	private renderImageSync(content: string, container: HTMLElement) {
 		// 匹配各种图片语法
-		const wikiImageRegex = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
-		const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
 		const wikiLinkRegex = /\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp))(?:\|[^\]]+)?\]\]/gi;
+		const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
 
 		let match;
 		const images: { src: string; alt: string }[] = [];
@@ -124,7 +116,7 @@ export class AlignmentPostProcessor {
 			images.push({ src: fileName, alt: fileName });
 		}
 
-		// 匹配 ![alt](url) 或 ![[image]]
+		// 匹配 ![alt](url)
 		while ((match = markdownImageRegex.exec(content)) !== null) {
 			images.push({ alt: match[1], src: match[2] });
 		}
@@ -137,8 +129,8 @@ export class AlignmentPostProcessor {
 			// 处理内部链接
 			if (!img.src.startsWith('http')) {
 				const file = this.plugin.app.vault.getAbstractFileByPath(img.src);
-				if (file) {
-					imgEl.src = this.plugin.app.vault.getResourcePath(file as any);
+				if (file && file instanceof TFile) {
+					imgEl.src = this.plugin.app.vault.getResourcePath(file);
 				} else {
 					// 尝试在附件文件夹中查找
 					const attachmentsPath = this.findFileInVault(img.src);
@@ -169,136 +161,5 @@ export class AlignmentPostProcessor {
 			}
 		}
 		return null;
-	}
-}
-
-/**
- * 处理内联对齐语法 {align=center}
- */
-export class InlineAlignmentProcessor {
-	plugin: ImageManagerPlugin;
-
-	constructor(plugin: ImageManagerPlugin) {
-		this.plugin = plugin;
-	}
-
-	/**
-	 * 注册 PostProcessor
-	 */
-	register() {
-		this.plugin.registerMarkdownPostProcessor((element) => {
-			this.processInlineAlignment(element);
-		});
-	}
-
-	/**
-	 * 处理内联对齐语法
-	 */
-	private processInlineAlignment(element: HTMLElement) {
-		// 查找包含 {align=...} 的元素
-		const walker = document.createTreeWalker(
-			element,
-			NodeFilter.SHOW_TEXT,
-			null
-		);
-
-		let node: Text | null;
-		while (node = walker.nextNode() as Text) {
-			const text = node.textContent || '';
-			if (text.includes('{align=')) {
-				this.processNode(node);
-			}
-		}
-	}
-
-	/**
-	 * 处理单个节点
-	 */
-	private processNode(node: Text) {
-		const text = node.textContent || '';
-		const parent = node.parentElement;
-		if (!parent) return;
-
-		// 匹配 {align=center} 等语法
-		const alignRegex = /{align=(center|left|right)}\s*(!?\[\[[^\]]+\]\]|\![^\(]+\([^\)]+\))/gi;
-		let match;
-		let lastIndex = 0;
-		const fragment = document.createDocumentFragment();
-
-		while ((match = alignRegex.exec(text)) !== null) {
-			// 添加匹配之前的文本
-			if (match.index > lastIndex) {
-				fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
-			}
-
-			const alignment = match[1] as AlignmentType;
-			const imageSyntax = match[2];
-
-			// 创建对齐容器
-			const alignContainer = document.createElement('span');
-			alignContainer.className = `inline-align-${alignment}`;
-			alignContainer.style.display = 'block';
-			alignContainer.style.textAlign = alignment;
-			alignContainer.style.margin = '5px 0';
-
-			// 渲染图片
-			await this.renderImage(imageSyntax, alignContainer);
-
-			fragment.appendChild(alignContainer);
-			lastIndex = match.index + match[0].length;
-		}
-
-		// 如果没有匹配到任何块，保持原样
-		if (lastIndex === 0) {
-			return;
-		}
-
-		// 添加剩余文本
-		if (lastIndex < text.length) {
-			fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
-		}
-
-		// 替换原节点
-		parent.replaceChild(fragment, node);
-	}
-
-	/**
-	 * 渲染图片
-	 */
-	private async renderImage(content: string, container: HTMLElement) {
-		// 解析图片语法
-		let src = '';
-		let alt = '';
-
-		const wikiMatch = content.match(/!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/);
-		if (wikiMatch) {
-			src = wikiMatch[1];
-			alt = wikiMatch[2] || src;
-		} else {
-			const mdMatch = content.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-			if (mdMatch) {
-				alt = mdMatch[1];
-				src = mdMatch[2];
-			}
-		}
-
-		if (!src) return;
-
-		const imgEl = document.createElement('img');
-		imgEl.alt = alt;
-
-		// 处理内部链接
-		if (!src.startsWith('http')) {
-			const file = this.plugin.app.vault.getAbstractFileByPath(src);
-			if (file) {
-				imgEl.src = this.plugin.app.vault.getResourcePath(file as any);
-			}
-		} else {
-			imgEl.src = src;
-		}
-
-		imgEl.style.maxWidth = '100%';
-		imgEl.style.height = 'auto';
-		container.appendChild(imgEl);
 	}
 }

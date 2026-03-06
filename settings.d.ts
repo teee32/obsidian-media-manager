@@ -8,6 +8,17 @@ export interface ImageManagerSettings {
     sortOrder: 'asc' | 'desc';
     autoRefresh: boolean;
     defaultAlignment: 'left' | 'center' | 'right';
+    useTrashFolder: boolean;
+    trashFolder: string;
+    autoCleanupTrash: boolean;
+    trashCleanupDays: number;
+    enableImages: boolean;
+    enableVideos: boolean;
+    enableAudio: boolean;
+    enablePDF: boolean;
+    pageSize: number;
+    enablePreviewModal: boolean;
+    enableKeyboardNav: boolean;
 }
 export declare const DEFAULT_SETTINGS: ImageManagerSettings;
 export declare class SettingsTab extends PluginSettingTab {

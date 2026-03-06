@@ -96,7 +96,7 @@ export default class ImageManagerPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-media-library-shortcut',
 			name: '打开媒体库',
-			hotkey: { modifiers: ['Ctrl', 'Shift'], key: 'm' },
+			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'm' }],
 			callback: () => {
 				this.openImageLibrary();
 			}
@@ -106,7 +106,7 @@ export default class ImageManagerPlugin extends Plugin {
 		this.addCommand({
 			id: 'find-unreferenced-media-shortcut',
 			name: '查找未引用媒体',
-			hotkey: { modifiers: ['Ctrl', 'Shift'], key: 'u' },
+			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'u' }],
 			callback: () => {
 				this.findUnreferencedImages();
 			}
@@ -116,7 +116,7 @@ export default class ImageManagerPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-trash-management-shortcut',
 			name: '打开隔离文件管理',
-			hotkey: { modifiers: ['Ctrl', 'Shift'], key: 't' },
+			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 't' }],
 			callback: () => {
 				this.openTrashManagement();
 			}
@@ -926,49 +926,24 @@ export default class ImageManagerPlugin extends Plugin {
 	// 获取所有Markdown文件中引用的图片
 	async getReferencedImages(): Promise<Set<string>> {
 		const referenced = new Set<string>();
-		const { metadataCache, vault } = this.app;
+		const { vault } = this.app;
 
-		// 获取所有文件的后向链接
-		const allFiles = vault.getFiles().filter(f => f.extension === 'md');
-
-		for (const file of allFiles) {
-			// 获取文件的所有后向链接
-			const links = metadataCache.getBacklinksForFile(file);
-
-			// 遍历所有引用该文件的链接
-			for (const [sourceFile, linkList] of links) {
-				for (const link of linkList) {
-					// 检查是否是嵌入或图片链接
-					const linkText = link.link;
-					if (linkText) {
-						// 处理各种链接格式
-						const normalizedPath = linkText.toLowerCase();
-						referenced.add(normalizedPath);
-
-						// 提取文件名
-						const fileName = normalizedPath.split('/').pop() || normalizedPath;
-						referenced.add(fileName);
-
-						// 处理带别名的链接 [[file.png|alias]]
-						const aliasMatch = normalizedPath.match(/^(.+)\|/);
-						if (aliasMatch) {
-							referenced.add(aliasMatch[1].toLowerCase());
-						}
-					}
-				}
-			}
-		}
-
-		// 同时使用正则扫描作为补充（处理一些边缘情况）
+		// 使用正则扫描所有 Markdown 文件
 		const markdownFiles = vault.getFiles().filter(f => f.extension === 'md');
 		for (const file of markdownFiles) {
 			const content = await vault.read(file);
 
-			// 匹配 [[文件名]] 或 ![](链接) 格式
+			// 匹配各种链接格式
+			// [[filename.png]] 或 [[path/to/filename.png]]
 			const wikiLinkPattern = /\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
+			// [[filename.png|alias]] 带别名的
+			const wikiLinkAliasPattern = /\[\[([^|\]]+)\|([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
+			// ![alt](path/to/image.png)
 			const markdownLinkPattern = /!\[.*?\]\(([^)]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\)/gi;
 
 			let match;
+
+			// 匹配基本 Wiki 链接
 			while ((match = wikiLinkPattern.exec(content)) !== null) {
 				const path = match[1].toLowerCase();
 				referenced.add(path);
@@ -976,12 +951,24 @@ export default class ImageManagerPlugin extends Plugin {
 				const fileName = path.split('/').pop() || path;
 				referenced.add(fileName);
 			}
+
+			// 匹配带别名的 Wiki 链接
+			while ((match = wikiLinkAliasPattern.exec(content)) !== null) {
+				const path = match[1].toLowerCase();
+				referenced.add(path);
+				const fileName = path.split('/').pop() || path;
+				referenced.add(fileName);
+			}
+
+			// 匹配 Markdown 图片链接
 			while ((match = markdownLinkPattern.exec(content)) !== null) {
 				const url = match[1];
 				// 只处理相对路径或仓库内文件
 				if (!url.startsWith('http')) {
 					const filename = url.split('/').pop()?.toLowerCase() || '';
 					referenced.add(filename);
+					// 也添加完整路径
+					referenced.add(url.toLowerCase());
 				}
 			}
 		}
@@ -1001,44 +988,24 @@ export default class ImageManagerPlugin extends Plugin {
 
 	// 打开图片所在的笔记
 	async openImageInNotes(imageFile: TFile) {
-		const { metadataCache, workspace, vault } = this.app;
+		const { workspace, vault } = this.app;
 		const results: { file: TFile; line: number }[] = [];
+		const imageName = imageFile.name;
 
-		// 使用 MetadataCache API 获取准确的后向链接
-		const links = metadataCache.getBacklinksForFile(imageFile);
+		// 使用正则扫描所有 Markdown 文件
+		const markdownFiles = vault.getFiles().filter(f => f.extension === 'md');
 
-		for (const [sourceFile, linkList] of links) {
-			// 只处理 Markdown 文件
-			if (sourceFile.extension !== 'md') continue;
+		for (const file of markdownFiles) {
+			const content = await vault.read(file);
+			const lines = content.split('\n');
 
-			for (const link of linkList) {
-				// link.position 包含位置信息
-				if (link.position && link.position.start) {
-					results.push({
-						file: sourceFile,
-						line: link.position.start.line + 1  // 行号从 0 开始，需要加 1
-					});
-				}
-			}
-		}
-
-		// 如果 MetadataCache 没有找到，尝试使用正则扫描作为后备
-		if (results.length === 0) {
-			const markdownFiles = vault.getFiles().filter(f => f.extension === 'md');
-			const imageName = imageFile.name;
-
-			for (const file of markdownFiles) {
-				const content = await vault.read(file);
-				const lines = content.split('\n');
-
-				for (let i = 0; i < lines.length; i++) {
-					const line = lines[i];
-					// 使用更精确的匹配：匹配图片链接格式
-					if (line.includes(imageName) &&
-						(line.includes('[[') || line.includes('![') || line.includes('](', ))) {
-						results.push({ file, line: i + 1 });
-						break; // 每个文件只取第一个匹配
-					}
+			for (let i = 0; i < lines.length; i++) {
+				const line = lines[i];
+				// 使用更精确的匹配：匹配图片链接格式
+				if (line.includes(imageName) &&
+					(line.includes('[[') || line.includes('![') || line.includes('](', ))) {
+					results.push({ file, line: i + 1 });
+					break; // 每个文件只取第一个匹配
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-import { TFile, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
+import { TFile, TFolder, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
 
 export const VIEW_TYPE_TRASH_MANAGEMENT = 'trash-management-view';
@@ -58,7 +58,7 @@ export class TrashManagementView extends View {
 			const trashPath = this.plugin.settings.trashFolder;
 			const trashFolder = this.plugin.app.vault.getAbstractFileByPath(trashPath);
 
-			if (!trashFolder || !trashFolder.children) {
+			if (!trashFolder || !(trashFolder instanceof TFolder)) {
 				this.trashItems = [];
 				await this.renderView();
 				return;
@@ -211,38 +211,38 @@ export class TrashManagementView extends View {
 	/**
 	 * 显示右键菜单
 	 */
-	showContextMenu(event: MouseEvent, item: TrashItem) {
+	showContextMenu(event: MouseEvent, trashItem: TrashItem) {
 		const menu = new Menu();
 
-		menu.addItem((item: MenuItem) => {
-			item.setTitle('恢复文件')
+		menu.addItem((menuItem: MenuItem) => {
+			menuItem.setTitle('恢复文件')
 				.setIcon('rotate-ccw')
-				.onClick(() => this.restoreFile(item));
+				.onClick(() => this.restoreFile(trashItem));
 		});
 
-		menu.addItem((item: MenuItem) => {
-			item.setTitle('彻底删除')
+		menu.addItem((menuItem: MenuItem) => {
+			menuItem.setTitle('彻底删除')
 				.setIcon('trash-2')
-				.onClick(() => this.confirmDelete(item));
+				.onClick(() => this.confirmDelete(trashItem));
 		});
 
 		menu.addSeparator();
 
-		menu.addItem((item: MenuItem) => {
-			item.setTitle('复制文件名')
+		menu.addItem((menuItem: MenuItem) => {
+			menuItem.setTitle('复制文件名')
 				.setIcon('copy')
 				.onClick(() => {
-					navigator.clipboard.writeText(item.name);
+					navigator.clipboard.writeText(trashItem.name);
 					new Notice('文件名已复制');
 				});
 		});
 
-		menu.addItem((item: MenuItem) => {
-			item.setTitle('复制原始路径')
+		menu.addItem((menuItem: MenuItem) => {
+			menuItem.setTitle('复制原始路径')
 				.setIcon('link')
 				.onClick(() => {
-					if (item.originalPath) {
-						navigator.clipboard.writeText(item.originalPath);
+					if (trashItem.originalPath) {
+						navigator.clipboard.writeText(trashItem.originalPath);
 						new Notice('原始路径已复制');
 					}
 				});

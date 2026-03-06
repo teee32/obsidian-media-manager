@@ -168,7 +168,6 @@ export class MediaPreviewModal extends Modal {
 		};
 
 		this.modalEl.addEventListener('keydown', handleKey);
-		this.register(() => this.modalEl.removeEventListener('keydown', handleKey));
 	}
 
 	/**

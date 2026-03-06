@@ -40,12 +40,12 @@ export class DeleteConfirmModal extends Modal {
 
 		// 警告信息
 		const warning = contentEl.createDiv({ cls: 'modal-warning' });
-		warning.createEl('p', {
-			text: this.plugin.settings.useTrashFolder
-				? '文件将被移至隔离文件夹，您可以在设置中恢复或彻底删除。'
-				: '此操作不可撤销，文件将被永久删除。',
-			style: 'color: var(--text-warning); margin: 16px 0;'
-		});
+		const warningText = warning.createEl('p');
+		warningText.textContent = this.plugin.settings.useTrashFolder
+			? '文件将被移至隔离文件夹，您可以在设置中恢复或彻底删除。'
+			: '此操作不可撤销，文件将被永久删除。';
+		warningText.style.color = 'var(--text-warning)';
+		warningText.style.margin = '16px 0';
 
 		// 文件列表
 		const listContainer = contentEl.createDiv({ cls: 'modal-file-list' });
