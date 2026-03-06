@@ -33,14 +33,18 @@ export class UnreferencedImagesView extends View {
 	}
 
 	async onOpen() {
-		// 等待 contentEl 准备好
-		if (!this.contentEl) {
-			await new Promise(resolve => setTimeout(resolve, 100));
-		}
-		if (!this.contentEl) {
-			console.error('UnreferencedImagesView: contentEl not ready');
-			return;
-		}
+		// 等待 DOM 准备完成
+		await new Promise(resolve => {
+			const check = () => {
+				if (this.contentEl && this.contentEl.children.length > 0) {
+					resolve(true);
+				} else {
+					setTimeout(check, 50);
+				}
+			};
+			check();
+		});
+
 		this.contentEl.addClass('unreferenced-images-view');
 
 		if (!this.isScanning) {

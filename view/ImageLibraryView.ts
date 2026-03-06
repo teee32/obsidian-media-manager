@@ -46,14 +46,18 @@ export class ImageLibraryView extends View {
 	}
 
 	async onOpen() {
-		// 等待 contentEl 准备好
-		if (!this.contentEl) {
-			await new Promise(resolve => setTimeout(resolve, 100));
-		}
-		if (!this.contentEl) {
-			console.error('ImageLibraryView: contentEl not ready');
-			return;
-		}
+		// 等待 DOM 准备完成
+		await new Promise(resolve => {
+			const check = () => {
+				if (this.contentEl && this.contentEl.children.length > 0) {
+					resolve(true);
+				} else {
+					setTimeout(check, 50);
+				}
+			};
+			check();
+		});
+
 		this.contentEl.addClass('image-library-view');
 		// 从设置中读取 pageSize
 		this.pageSize = this.plugin.settings.pageSize || 50;
