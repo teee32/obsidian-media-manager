@@ -17,7 +17,6 @@ export class ImageLibraryView extends View {
 	plugin: ImageManagerPlugin;
 	images: ImageItem[] = [];
 	filteredImages: ImageItem[] = [];
-	private contentEl!: HTMLElement;
 	private searchQuery: string = '';
 	private currentPage: number = 1;
 	private pageSize: number = 50;
@@ -46,18 +45,6 @@ export class ImageLibraryView extends View {
 	}
 
 	async onOpen() {
-		// 等待 DOM 准备完成
-		await new Promise(resolve => {
-			const check = () => {
-				if (this.contentEl && this.contentEl.children.length > 0) {
-					resolve(true);
-				} else {
-					setTimeout(check, 50);
-				}
-			};
-			check();
-		});
-
 		this.contentEl.addClass('image-library-view');
 		// 从设置中读取 pageSize
 		this.pageSize = this.plugin.settings.pageSize || 50;

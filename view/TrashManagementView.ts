@@ -18,7 +18,6 @@ interface TrashItem {
 export class TrashManagementView extends View {
 	plugin: ImageManagerPlugin;
 	trashItems: TrashItem[] = [];
-	private contentEl!: HTMLElement;
 	private isLoading: boolean = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ImageManagerPlugin) {
@@ -35,18 +34,6 @@ export class TrashManagementView extends View {
 	}
 
 	async onOpen() {
-		// 等待 DOM 准备完成
-		await new Promise(resolve => {
-			const check = () => {
-				if (this.contentEl && this.contentEl.children.length > 0) {
-					resolve(true);
-				} else {
-					setTimeout(check, 50);
-				}
-			};
-			check();
-		});
-
 		this.contentEl.addClass('trash-management-view');
 		await this.loadTrashItems();
 	}

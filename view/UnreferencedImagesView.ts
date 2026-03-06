@@ -16,7 +16,6 @@ interface UnreferencedImage {
 export class UnreferencedImagesView extends View {
 	plugin: ImageManagerPlugin;
 	unreferencedImages: UnreferencedImage[] = [];
-	private contentEl!: HTMLElement;
 	private isScanning: boolean = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ImageManagerPlugin) {
@@ -33,18 +32,6 @@ export class UnreferencedImagesView extends View {
 	}
 
 	async onOpen() {
-		// 等待 DOM 准备完成
-		await new Promise(resolve => {
-			const check = () => {
-				if (this.contentEl && this.contentEl.children.length > 0) {
-					resolve(true);
-				} else {
-					setTimeout(check, 50);
-				}
-			};
-			check();
-		});
-
 		this.contentEl.addClass('unreferenced-images-view');
 
 		if (!this.isScanning) {
