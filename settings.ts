@@ -8,6 +8,11 @@ export interface ImageManagerSettings {
 	sortBy: 'name' | 'date' | 'size';
 	sortOrder: 'asc' | 'desc';
 	autoRefresh: boolean;
+	defaultAlignment: 'left' | 'center' | 'right';
+	useTrashFolder: boolean;
+	trashFolder: string;
+	autoCleanupTrash: boolean;
+	trashCleanupDays: number;
 }
 
 export const DEFAULT_SETTINGS: ImageManagerSettings = {
@@ -16,7 +21,12 @@ export const DEFAULT_SETTINGS: ImageManagerSettings = {
 	showImageInfo: true,
 	sortBy: 'name',
 	sortOrder: 'asc',
-	autoRefresh: true
+	autoRefresh: true,
+	defaultAlignment: 'center',
+	useTrashFolder: true,
+	trashFolder: '.obsidian-media-manager-trash',
+	autoCleanupTrash: false,
+	trashCleanupDays: 30
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -31,14 +41,14 @@ export class SettingsTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: '图片管理插件设置' });
+		containerEl.createEl('h2', { text: '媒体管理插件设置' });
 
-		// 图片文件夹设置
+		// 媒体文件夹设置
 		new Setting(containerEl)
-			.setName('图片文件夹')
-			.setDesc('指定要扫描的图片文件夹路径（留空则扫描整个库）')
+			.setName('媒体文件夹')
+			.setDesc('指定要扫描的媒体文件夹路径（留空则扫描整个库）')
 			.addText(text => text
-				.setPlaceholder('例如: attachments/images')
+				.setPlaceholder('例如: attachments/media')
 				.setValue(this.plugin.settings.imageFolder)
 				.onChange(async (value) => {
 					this.plugin.settings.imageFolder = value;
@@ -48,14 +58,14 @@ export class SettingsTab extends PluginSettingTab {
 		// 缩略图大小
 		new Setting(containerEl)
 			.setName('缩略图大小')
-			.setDesc('选择图片库视图中缩略图的显示大小')
+			.setDesc('选择媒体库视图中缩略图的显示大小')
 			.addDropdown(dropdown => dropdown
 				.addOption('small', '小 (100px)')
 				.addOption('medium', '中 (150px)')
 				.addOption('large', '大 (200px)')
 				.setValue(this.plugin.settings.thumbnailSize)
-				.onChange(async (value: 'small' | 'medium' | 'large') => {
-					this.plugin.settings.thumbnailSize = value;
+				.onChange(async (value: string) => {
+					this.plugin.settings.thumbnailSize = value as 'small' | 'medium' | 'large';
 					await this.plugin.saveSettings();
 				}));
 
@@ -68,8 +78,8 @@ export class SettingsTab extends PluginSettingTab {
 				.addOption('date', '按修改日期')
 				.addOption('size', '按文件大小')
 				.setValue(this.plugin.settings.sortBy)
-				.onChange(async (value: 'name' | 'date' | 'size') => {
-					this.plugin.settings.sortBy = value;
+				.onChange(async (value: string) => {
+					this.plugin.settings.sortBy = value as 'name' | 'date' | 'size';
 					await this.plugin.saveSettings();
 				}));
 
@@ -81,8 +91,8 @@ export class SettingsTab extends PluginSettingTab {
 				.addOption('asc', '升序')
 				.addOption('desc', '降序')
 				.setValue(this.plugin.settings.sortOrder)
-				.onChange(async (value: 'asc' | 'desc') => {
-					this.plugin.settings.sortOrder = value;
+				.onChange(async (value: string) => {
+					this.plugin.settings.sortOrder = value as 'asc' | 'desc';
 					await this.plugin.saveSettings();
 				}));
 
@@ -108,6 +118,75 @@ export class SettingsTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// 默认对齐方式
+		new Setting(containerEl)
+			.setName('默认图片对齐方式')
+			.setDesc('插入图片时的默认对齐方式')
+			.addDropdown(dropdown => dropdown
+				.addOption('left', '居左')
+				.addOption('center', '居中')
+				.addOption('right', '居右')
+				.setValue(this.plugin.settings.defaultAlignment)
+				.onChange(async (value: string) => {
+					this.plugin.settings.defaultAlignment = value as 'left' | 'center' | 'right';
+					await this.plugin.saveSettings();
+				}));
+
+		// 分隔线
+		containerEl.createEl('hr', { cls: 'settings-divider' });
+
+		// 安全删除设置
+		containerEl.createEl('h3', { text: '安全删除设置' });
+
+		// 使用隔离文件夹
+		new Setting(containerEl)
+			.setName('使用隔离文件夹')
+			.setDesc('删除文件时先移入隔离文件夹，而不是直接删除')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.useTrashFolder)
+				.onChange(async (value) => {
+					this.plugin.settings.useTrashFolder = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// 隔离文件夹路径
+		new Setting(containerEl)
+			.setName('隔离文件夹')
+			.setDesc('隔离文件夹的路径（相对路径）')
+			.addText(text => text
+				.setPlaceholder('.obsidian-media-manager-trash')
+				.setValue(this.plugin.settings.trashFolder)
+				.onChange(async (value) => {
+					this.plugin.settings.trashFolder = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// 自动清理隔离文件夹
+		new Setting(containerEl)
+			.setName('自动清理隔离文件夹')
+			.setDesc('自动清理隔离文件夹中的旧文件')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoCleanupTrash)
+				.onChange(async (value) => {
+					this.plugin.settings.autoCleanupTrash = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// 清理天数
+		new Setting(containerEl)
+			.setName('清理天数')
+			.setDesc('隔离文件夹中的文件超过此天数后将自动删除')
+			.addText(text => text
+				.setPlaceholder('30')
+				.setValue(String(this.plugin.settings.trashCleanupDays))
+				.onChange(async (value) => {
+					const days = parseInt(value, 10);
+					if (!isNaN(days) && days > 0) {
+						this.plugin.settings.trashCleanupDays = days;
+						await this.plugin.saveSettings();
+					}
+				}));
+
 		// 分隔线
 		containerEl.createEl('hr', { cls: 'settings-divider' });
 
@@ -117,7 +196,10 @@ export class SettingsTab extends PluginSettingTab {
 			text: '在命令面板中使用以下命令：',
 			cls: 'settings-description'
 		});
-		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '图片库 - 打开图片库视图' });
-		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '查找未引用图片 - 查找未被任何笔记引用的图片' });
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '媒体库 - 打开媒体库视图' });
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '查找未引用媒体 - 查找未被任何笔记引用的媒体文件' });
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '图片居左对齐 - 将选中图片居左对齐' });
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '图片居中对齐 - 将选中图片居中对齐' });
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '图片居右对齐 - 将选中图片居右对齐' });
 	}
 }

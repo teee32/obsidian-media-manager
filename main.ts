@@ -1,10 +1,11 @@
-import { Plugin, Editor, TFile, MarkdownView, Notice, Menu, MenuItem, setIcon } from 'obsidian';
+import { Plugin, Editor, TFile, MarkdownView, Notice, Menu, MenuItem, setIcon, EditorPosition, EditorSelection, Events } from 'obsidian';
 import { ImageLibraryView, VIEW_TYPE_IMAGE_LIBRARY } from './view/ImageLibraryView';
 import { UnreferencedImagesView, VIEW_TYPE_UNREFERENCED_IMAGES } from './view/UnreferencedImagesView';
 import { ImageManagerSettings, DEFAULT_SETTINGS, SettingsTab } from './settings';
+import { ImageAlignment, AlignmentType } from './utils/imageAlignment';
 
 export default class ImageManagerPlugin extends Plugin {
-	settings: ImageManagerSettings;
+	settings: ImageManagerSettings = DEFAULT_SETTINGS;
 
 	async onload() {
 		await this.loadSettings();
@@ -37,6 +38,39 @@ export default class ImageManagerPlugin extends Plugin {
 			}
 		});
 
+		// 图片对齐命令
+		this.addCommand({
+			id: 'align-image-left',
+			name: '图片居左对齐',
+			editorCallback: (editor: Editor) => {
+				this.alignSelectedImage(editor, 'left');
+			}
+		});
+
+		this.addCommand({
+			id: 'align-image-center',
+			name: '图片居中对齐',
+			editorCallback: (editor: Editor) => {
+				this.alignSelectedImage(editor, 'center');
+			}
+		});
+
+		this.addCommand({
+			id: 'align-image-right',
+			name: '图片居右对齐',
+			editorCallback: (editor: Editor) => {
+				this.alignSelectedImage(editor, 'right');
+			}
+		});
+
+		// 注册编辑器上下文菜单
+		this.registerEvent(
+			// @ts-ignore - editor-context-menu event
+			this.app.workspace.on('editor-context-menu', (menu: any, editor: any) => {
+				this.addAlignmentMenuItems(menu, editor);
+			})
+		);
+
 		// 添加设置标签页
 		this.addSettingTab(new SettingsTab(this.app, this));
 	}
@@ -44,6 +78,381 @@ export default class ImageManagerPlugin extends Plugin {
 	onunload() {
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_IMAGE_LIBRARY);
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_UNREFERENCED_IMAGES);
+	}
+
+	// 加载样式文件
+	addStyle() {
+		const styleEl = document.createElement('style');
+		styleEl.id = 'image-manager-styles';
+		styleEl.textContent = `\/* Obsidian Image Manager Plugin Styles *\/
+
+/* ===== 全局样式 ===== */
+.image-library-view,
+.unreferenced-images-view {
+	height: 100%;
+	overflow-y: auto;
+	padding: 16px;
+	box-sizing: border-box;
+}
+
+/* ===== 头部样式 ===== */
+.image-library-header,
+.unreferenced-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 20px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.image-library-header h2,
+.unreferenced-header h2 {
+	margin: 0;
+	font-size: 1.5em;
+	font-weight: 600;
+}
+
+.image-stats,
+.header-description {
+	margin-top: 4px;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.header-description {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+/* ===== 按钮样式 ===== */
+.refresh-button,
+.action-button,
+.item-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px;
+	border: none;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.2s, color 0.2s;
+}
+
+.refresh-button:hover,
+.action-button:hover,
+.item-button:hover {
+	background: var(--background-tertiary);
+}
+
+.refresh-button svg,
+.action-button svg,
+.item-button svg {
+	width: 16px;
+	height: 16px;
+}
+
+.action-button.danger,
+.item-button.danger {
+	color: var(--text-error);
+}
+
+.action-button.danger:hover,
+.item-button.danger:hover {
+	background: var(--background-modifier-error);
+	color: white;
+}
+
+.header-actions {
+	display: flex;
+	gap: 8px;
+}
+
+/* ===== 排序选择器 ===== */
+.sort-select {
+	padding: 6px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+	cursor: pointer;
+}
+
+.order-button {
+	padding: 6px 8px;
+	margin-left: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.order-button svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* ===== 图片网格 ===== */
+.image-grid {
+	display: grid;
+	gap: 16px;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.image-grid-small {
+	grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+}
+
+.image-grid-medium {
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.image-grid-large {
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+/* ===== 图片项 ===== */
+.image-item {
+	display: flex;
+	flex-direction: column;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	overflow: hidden;
+	transition: transform 0.2s, box-shadow 0.2s;
+	cursor: pointer;
+}
+
+.image-item:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.image-container {
+	position: relative;
+	width: 100%;
+	padding-top: 100%;
+	overflow: hidden;
+	background: var(--background-tertiary);
+}
+
+.image-container img {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.image-info {
+	padding: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.image-name {
+	font-size: 0.85em;
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.image-size {
+	font-size: 0.75em;
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+
+/* ===== 未引用图片列表 ===== */
+.stats-bar {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 12px 16px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	margin-bottom: 16px;
+}
+
+.stats-count {
+	font-weight: 600;
+	color: var(--text-warning);
+}
+
+.stats-size {
+	color: var(--text-muted);
+}
+
+.unreferenced-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.unreferenced-item {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	transition: background 0.2s;
+}
+
+.unreferenced-item:hover {
+	background: var(--background-tertiary);
+}
+
+.item-thumbnail {
+	width: 60px;
+	height: 60px;
+	flex-shrink: 0;
+	border-radius: 4px;
+	overflow: hidden;
+	background: var(--background-tertiary);
+}
+
+.item-thumbnail img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.item-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.item-name {
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.item-path {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin-top: 2px;
+}
+
+.item-size {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	margin-top: 4px;
+}
+
+.item-actions {
+	display: flex;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+/* ===== 空状态 ===== */
+.empty-state,
+.loading-state,
+.success-state,
+.error-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 48px;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.empty-state::before {
+	content: '🖼️';
+	font-size: 48px;
+	margin-bottom: 16px;
+}
+
+.success-state::before {
+	content: '✅';
+	font-size: 48px;
+	margin-bottom: 16px;
+}
+
+.error-state::before {
+	content: '❌';
+	font-size: 48px;
+	margin-bottom: 16px;
+}
+
+/* 加载动画 */
+.spinner {
+	width: 32px;
+	height: 32px;
+	border: 3px solid var(--background-modifier-border);
+	border-top-color: var(--text-accent);
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	margin-bottom: 16px;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ===== 设置页面样式 ===== */
+.settings-divider {
+	margin: 24px 0;
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.settings-description {
+	color: var(--text-muted);
+	margin-bottom: 8px;
+}
+
+.settings-list {
+	margin: 0;
+	padding-left: 20px;
+	color: var(--text-muted);
+}
+
+.settings-list li {
+	margin-bottom: 4px;
+}
+
+/* ===== 响应式设计 ===== */
+@media (max-width: 768px) {
+	.image-library-header,
+	.unreferenced-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.header-actions {
+		width: 100%;
+		justify-content: flex-end;
+	}
+
+	.unreferenced-item {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.item-actions {
+		width: 100%;
+		justify-content: flex-end;
+		margin-top: 8px;
+	}
+}`;
+		document.head.appendChild(styleEl);
 	}
 
 	async loadSettings() {
@@ -82,33 +491,81 @@ export default class ImageManagerPlugin extends Plugin {
 		workspace.revealLeaf(leaf);
 	}
 
-	// 获取所有图片文件
+	// 获取所有媒体文件（图片、音视频、PDF）
 	async getAllImageFiles(): Promise<TFile[]> {
 		const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
+		const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+		const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac'];
+		const documentExtensions = ['.pdf'];
+
+		const allExtensions = [...imageExtensions, ...videoExtensions, ...audioExtensions, ...documentExtensions];
 		const allFiles = this.app.vault.getFiles();
 		return allFiles.filter(file =>
-			imageExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
+			allExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
 		);
+	}
+
+	// 获取所有图片文件（保留兼容性）
+	async getAllMediaFiles(): Promise<TFile[]> {
+		return this.getAllImageFiles();
 	}
 
 	// 获取所有Markdown文件中引用的图片
 	async getReferencedImages(): Promise<Set<string>> {
 		const referenced = new Set<string>();
-		const markdownFiles = this.app.vault.getFiles().filter(f => f.extension === 'md');
+		const { metadataCache, vault } = this.app;
 
+		// 获取所有文件的后向链接
+		const allFiles = vault.getFiles().filter(f => f.extension === 'md');
+
+		for (const file of allFiles) {
+			// 获取文件的所有后向链接
+			const links = metadataCache.getBacklinksForFile(file);
+
+			// 遍历所有引用该文件的链接
+			for (const [sourceFile, linkList] of links) {
+				for (const link of linkList) {
+					// 检查是否是嵌入或图片链接
+					const linkText = link.link;
+					if (linkText) {
+						// 处理各种链接格式
+						const normalizedPath = linkText.toLowerCase();
+						referenced.add(normalizedPath);
+
+						// 提取文件名
+						const fileName = normalizedPath.split('/').pop() || normalizedPath;
+						referenced.add(fileName);
+
+						// 处理带别名的链接 [[file.png|alias]]
+						const aliasMatch = normalizedPath.match(/^(.+)\|/);
+						if (aliasMatch) {
+							referenced.add(aliasMatch[1].toLowerCase());
+						}
+					}
+				}
+			}
+		}
+
+		// 同时使用正则扫描作为补充（处理一些边缘情况）
+		const markdownFiles = vault.getFiles().filter(f => f.extension === 'md');
 		for (const file of markdownFiles) {
-			const content = await this.app.vault.read(file);
+			const content = await vault.read(file);
+
 			// 匹配 [[文件名]] 或 ![](链接) 格式
-			const wikiLinkPattern = /\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp))\]\]/gi;
-			const markdownLinkPattern = /!\[.*?\]\(([^)]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp))\)/gi;
+			const wikiLinkPattern = /\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
+			const markdownLinkPattern = /!\[.*?\]\(([^)]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\)/gi;
 
 			let match;
 			while ((match = wikiLinkPattern.exec(content)) !== null) {
-				referenced.add(match[1].toLowerCase());
+				const path = match[1].toLowerCase();
+				referenced.add(path);
+				// 添加文件名
+				const fileName = path.split('/').pop() || path;
+				referenced.add(fileName);
 			}
 			while ((match = markdownLinkPattern.exec(content)) !== null) {
 				const url = match[1];
-				// 只处理相对路径或仓库内图片
+				// 只处理相对路径或仓库内文件
 				if (!url.startsWith('http')) {
 					const filename = url.split('/').pop()?.toLowerCase() || '';
 					referenced.add(filename);
@@ -131,27 +588,201 @@ export default class ImageManagerPlugin extends Plugin {
 
 	// 打开图片所在的笔记
 	async openImageInNotes(imageFile: TFile) {
-		const markdownFiles = this.app.vault.getFiles().filter(f => f.extension === 'md');
+		const { metadataCache, workspace, vault } = this.app;
 		const results: { file: TFile; line: number }[] = [];
 
-		for (const file of markdownFiles) {
-			const content = await this.app.vault.read(file);
-			const lines = content.split('\n');
+		// 使用 MetadataCache API 获取准确的后向链接
+		const links = metadataCache.getBacklinksForFile(imageFile);
 
-			for (let i = 0; i < lines.length; i++) {
-				const line = lines[i];
-				if (line.includes(imageFile.name)) {
-					results.push({ file, line: i + 1 });
+		for (const [sourceFile, linkList] of links) {
+			// 只处理 Markdown 文件
+			if (sourceFile.extension !== 'md') continue;
+
+			for (const link of linkList) {
+				// link.position 包含位置信息
+				if (link.position && link.position.start) {
+					results.push({
+						file: sourceFile,
+						line: link.position.start.line + 1  // 行号从 0 开始，需要加 1
+					});
+				}
+			}
+		}
+
+		// 如果 MetadataCache 没有找到，尝试使用正则扫描作为后备
+		if (results.length === 0) {
+			const markdownFiles = vault.getFiles().filter(f => f.extension === 'md');
+			const imageName = imageFile.name;
+
+			for (const file of markdownFiles) {
+				const content = await vault.read(file);
+				const lines = content.split('\n');
+
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i];
+					// 使用更精确的匹配：匹配图片链接格式
+					if (line.includes(imageName) &&
+						(line.includes('[[') || line.includes('![') || line.includes('](', ))) {
+						results.push({ file, line: i + 1 });
+						break; // 每个文件只取第一个匹配
+					}
 				}
 			}
 		}
 
 		if (results.length > 0) {
-			const file = results[0].file;
-			const line = results[0].line;
-			this.app.workspace.openLinkText(file.name, file.path, true);
+			const result = results[0];
+			// 打开文件并跳转到指定行
+			const leaf = workspace.getLeaf('tab');
+			await leaf.openFile(result.file);
+
+			// 尝试跳转到具体行
+			if (result.line > 1) {
+				setTimeout(() => {
+					const view = workspace.getActiveViewOfType(MarkdownView);
+					if (view) {
+						const editor = view.editor;
+						editor.setCursor({ ch: 0, line: result.line - 1 });
+						editor.scrollIntoView({ from: { ch: 0, line: result.line - 1 }, to: { ch: 0, line: result.line - 1 } }, true);
+					}
+				}, 100);
+			}
 		} else {
 			new Notice('该图片未被任何笔记引用');
+		}
+	}
+
+	// 对齐选中的图片
+	alignSelectedImage(editor: Editor, alignment: 'left' | 'center' | 'right') {
+		const selection = editor.getSelection();
+		if (!selection) {
+			new Notice('请先选中一张图片');
+			return;
+		}
+
+		// 检查是否选中的是图片
+		if (!selection.includes('![') && !selection.includes('[[')) {
+			new Notice('请选中图片');
+			return;
+		}
+
+		const alignedText = ImageAlignment.applyAlignment(selection, alignment);
+		editor.replaceSelection(alignedText);
+		new Notice(`图片已${alignment === 'left' ? '居左' : alignment === 'center' ? '居中' : '居右'}对齐`);
+	}
+
+	// 添加编辑器上下文菜单项
+	addAlignmentMenuItems(menu: Menu, editor: Editor) {
+		const selection = editor.getSelection();
+
+		// 检查是否选中了图片
+		if (!selection || (!selection.includes('![') && !selection.includes('[['))) {
+			return;
+		}
+
+		menu.addSeparator();
+
+		menu.addItem((item: MenuItem) => {
+			item.setTitle('图片居左对齐')
+				.setIcon('align-left')
+				.onClick(() => {
+					this.alignSelectedImage(editor, 'left');
+				});
+		});
+
+		menu.addItem((item: MenuItem) => {
+			item.setTitle('图片居中对齐')
+				.setIcon('align-center')
+				.onClick(() => {
+					this.alignSelectedImage(editor, 'center');
+				});
+		});
+
+		menu.addItem((item: MenuItem) => {
+			item.setTitle('图片居右对齐')
+				.setIcon('align-right')
+				.onClick(() => {
+					this.alignSelectedImage(editor, 'right');
+				});
+		});
+	}
+
+	// 安全删除文件到隔离文件夹
+	async safeDeleteFile(file: TFile): Promise<boolean> {
+		const { vault } = this.app;
+
+		if (!this.settings.useTrashFolder) {
+			// 直接删除
+			try {
+				await vault.delete(file);
+				return true;
+			} catch (error) {
+				console.error('删除文件失败:', error);
+				new Notice(`删除失败: ${file.name}`);
+				return false;
+			}
+		}
+
+		// 移动到隔离文件夹
+		const trashPath = this.settings.trashFolder;
+		const fileName = file.name;
+		const timestamp = Date.now();
+		const newFileName = `${timestamp}_${fileName}`;
+		const targetPath = `${trashPath}/${newFileName}`;
+
+		try {
+			// 确保隔离文件夹存在
+			const trashFolder = vault.getAbstractFileByPath(trashPath);
+			if (!trashFolder) {
+				await vault.createFolder(trashPath);
+			}
+
+			// 移动文件到隔离文件夹
+			await vault.rename(file, targetPath);
+			new Notice(`已移至隔离文件夹: ${fileName}`);
+			return true;
+		} catch (error) {
+			console.error('移动文件到隔离文件夹失败:', error);
+			// 如果移动失败，尝试直接删除
+			try {
+				await vault.delete(file);
+				new Notice(`已删除: ${fileName}（隔离失败）`);
+				return true;
+			} catch (deleteError) {
+				console.error('删除文件失败:', deleteError);
+				new Notice(`操作失败: ${fileName}`);
+				return false;
+			}
+		}
+	}
+
+	// 恢复隔离文件夹中的文件
+	async restoreFile(file: TFile, originalPath: string): Promise<boolean> {
+		const { vault } = this.app;
+
+		try {
+			await vault.rename(file, originalPath);
+			new Notice(`已恢复文件`);
+			return true;
+		} catch (error) {
+			console.error('恢复文件失败:', error);
+			new Notice(`恢复失败`);
+			return false;
+		}
+	}
+
+	// 彻底删除隔离文件夹中的文件
+	async permanentlyDeleteFile(file: TFile): Promise<boolean> {
+		const { vault } = this.app;
+
+		try {
+			await vault.delete(file);
+			new Notice(`已彻底删除: ${file.name}`);
+			return true;
+		} catch (error) {
+			console.error('彻底删除文件失败:', error);
+			new Notice(`删除失败`);
+			return false;
 		}
 	}
 }

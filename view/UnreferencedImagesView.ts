@@ -1,5 +1,6 @@
 import { TFile, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 export const VIEW_TYPE_UNREFERENCED_IMAGES = 'unreferenced-images-view';
 
@@ -14,7 +15,7 @@ interface UnreferencedImage {
 export class UnreferencedImagesView extends View {
 	plugin: ImageManagerPlugin;
 	unreferencedImages: UnreferencedImage[] = [];
-	private contentEl: HTMLElement;
+	private contentEl!: HTMLElement;
 	private isScanning: boolean = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ImageManagerPlugin) {
@@ -27,7 +28,7 @@ export class UnreferencedImagesView extends View {
 	}
 
 	getDisplayText() {
-		return '未引用图片';
+		return '未引用媒体';
 	}
 
 	async onOpen() {
@@ -50,7 +51,7 @@ export class UnreferencedImagesView extends View {
 		// 显示扫描中状态
 		const loading = this.contentEl.createDiv({ cls: 'loading-state' });
 		loading.createEl('div', { cls: 'spinner' });
-		loading.createDiv({ text: '正在扫描未引用的图片...' });
+		loading.createDiv({ text: '正在扫描未引用的媒体文件...' });
 
 		try {
 			// 查找未引用的图片
@@ -89,7 +90,7 @@ export class UnreferencedImagesView extends View {
 		if (this.unreferencedImages.length === 0) {
 			this.contentEl.createDiv({
 				cls: 'success-state',
-				text: '太棒了！所有图片都已被引用'
+				text: '太棒了！所有媒体文件都已被引用'
 			});
 			return;
 		}
@@ -97,7 +98,7 @@ export class UnreferencedImagesView extends View {
 		// 创建统计信息
 		const stats = this.contentEl.createDiv({ cls: 'stats-bar' });
 		stats.createSpan({
-			text: `找到 ${this.unreferencedImages.length} 张未引用的图片`,
+			text: `找到 ${this.unreferencedImages.length} 个未引用的媒体文件`,
 			cls: 'stats-count'
 		});
 
@@ -118,10 +119,10 @@ export class UnreferencedImagesView extends View {
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'unreferenced-header' });
 
-		header.createEl('h2', { text: '未引用图片' });
+		header.createEl('h2', { text: '未引用媒体' });
 
 		const desc = header.createDiv({ cls: 'header-description' });
-		desc.createSpan({ text: '以下图片未被任何笔记引用，可能可以删除以释放空间' });
+		desc.createSpan({ text: '以下媒体文件未被任何笔记引用，可能可以删除以释放空间' });
 
 		// 重新扫描按钮
 		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
@@ -244,25 +245,22 @@ export class UnreferencedImagesView extends View {
 	}
 
 	async confirmDelete(image: UnreferencedImage) {
-		const confirmed = confirm(`确定要删除 "${image.name}" 吗？此操作不可撤销。`);
-
-		if (confirmed) {
-			try {
-				await this.app.vault.delete(image.file);
-				new Notice(`已删除 ${image.name}`);
-
-				// 从列表中移除
-				this.unreferencedImages = this.unreferencedImages.filter(
-					img => img.file.path !== image.file.path
-				);
-
-				// 重新渲染
-				await this.renderView();
-			} catch (error) {
-				console.error('删除文件时出错:', error);
-				new Notice('删除文件时出错');
+		new DeleteConfirmModal(
+			this.app,
+			this.plugin,
+			[image],
+			async () => {
+				const success = await this.plugin.safeDeleteFile(image.file);
+				if (success) {
+					// 从列表中移除
+					this.unreferencedImages = this.unreferencedImages.filter(
+						img => img.file.path !== image.file.path
+					);
+					// 重新渲染
+					await this.renderView();
+				}
 			}
-		}
+		).open();
 	}
 
 	async confirmDeleteAll() {
@@ -271,33 +269,34 @@ export class UnreferencedImagesView extends View {
 			return;
 		}
 
-		const confirmed = confirm(
-			`确定要删除所有 ${this.unreferencedImages.length} 张未引用的图片吗？此操作不可撤销。`
-		);
+		new DeleteConfirmModal(
+			this.app,
+			this.plugin,
+			this.unreferencedImages,
+			async () => {
+				const deleted: string[] = [];
+				const errors: string[] = [];
 
-		if (confirmed) {
-			const deleted: string[] = [];
-			const errors: string[] = [];
-
-			for (const image of this.unreferencedImages) {
-				try {
-					await this.app.vault.delete(image.file);
-					deleted.push(image.name);
-				} catch (error) {
-					errors.push(image.name);
+				for (const image of this.unreferencedImages) {
+					const success = await this.plugin.safeDeleteFile(image.file);
+					if (success) {
+						deleted.push(image.name);
+					} else {
+						errors.push(image.name);
+					}
 				}
-			}
 
-			if (deleted.length > 0) {
-				new Notice(`已删除 ${deleted.length} 张图片`);
-			}
-			if (errors.length > 0) {
-				new Notice(`删除 ${errors.length} 张图片时出错`);
-			}
+				if (deleted.length > 0) {
+					new Notice(`已处理 ${deleted.length} 个文件`);
+				}
+				if (errors.length > 0) {
+					new Notice(`处理 ${errors.length} 个文件时出错`);
+				}
 
-			// 重新扫描
-			await this.scanUnreferencedImages();
-		}
+				// 重新扫描
+				await this.scanUnreferencedImages();
+			}
+		).open();
 	}
 
 	copyAllPaths() {
