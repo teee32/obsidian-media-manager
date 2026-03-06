@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.2] - 2026-03-06
+
+### Security
+- 修复路径遍历漏洞：恢复文件、隔离文件夹操作全面添加 isPathSafe 校验
+- 修复 XSS 漏洞：postProcessor 拦截 javascript:/data: 等危险协议 URL
+- 修复 XSS 漏洞：imageAlignment toHTML 对 HTML 属性值做转义
+- 修复 window.open 劫持风险：添加 noopener,noreferrer
+- 修复原型污染：loadSettings 过滤 __proto__/constructor/prototype
+- 修复 CSS 注入：loadExternalStyles 过滤 expression()/javascript: 模式
+- 新增 utils/security.ts 共享安全工具模块（isPathSafe/isSafeUrl/escapeHtmlAttr）
+- security.ts 拒绝空字符串输入防止绕过
+
+### Fixed
+- 修复 wikiLinkAliasPattern 正则逻辑错误，[[path.ext|alias]] 无法正确匹配
+- 修复 MediaPreviewModal 文件不在列表时 index=-1 导致崩溃
+- 修复 MediaPreviewModal 切换图片后导航栏和信息栏不更新
+- 修复 UnreferencedImagesView 右键删除菜单传入不完整对象
+- 修复 ImageLibraryView 文件夹前缀匹配误命中相似文件夹名
+- 修复 ImageLibraryView 分页跳转输入空值导致 NaN
+- 修复 i18n 占位符只替换第一个出现的问题
+- 修复 i18n 无效语言参数可能导致崩溃
+- 修复 formatFileSize 对负数/Infinity/小于1字节的边界处理
+- 修复 trashCleanupDays 负值会导致所有隔离文件被删除
+- 修复 getReferencedImages 单文件读取失败中断整批扫描
+- 修复 restoreFile 翻译 key 不匹配和 openImageInNotes 多余逗号
+- DeleteConfirmModal 移除重复的 formatFileSize，使用共享版本
+
+### Changed
+- 构建工具从 tsc 切换为 esbuild，输出单个 main.js（符合 Obsidian 插件标准）
+- tsconfig.json 改为仅做类型检查（noEmit）
+- loadSettings 增加 try/catch 容错和设置值校验（clamp trashCleanupDays/pageSize/thumbnailSize）
+- Release workflow 升级 gh-release@v2，修正发布文件路径，增加 styles.css
+- @types/node 移至 devDependencies
+- 清理 git 中的编译产物（.d.ts.map），重新生成 package-lock.json
+
+---
+
 ## [1.1.1] - 2026-03-06
 
 ### Added
