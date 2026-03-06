@@ -653,11 +653,11 @@ const translations: Record<Language, Translations> = { zh, en };
  * 获取翻译
  */
 export function t(lang: Language, key: keyof Translations, params?: Record<string, string | number>): string {
-	let text = translations[lang][key] || translations['zh'][key] || key;
+	let text = (translations[lang] ?? translations['zh'])[key] || translations['zh'][key] || key;
 
 	if (params) {
 		Object.entries(params).forEach(([k, v]) => {
-			text = text.replace(`{${k}}`, String(v));
+			text = text.split(`{${k}}`).join(String(v));
 		});
 	}
 

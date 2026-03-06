@@ -1,5 +1,6 @@
 import { Modal, Notice, TFile } from 'obsidian';
 import ImageManagerPlugin from '../main';
+import { formatFileSize } from '../utils/format';
 
 interface UnreferencedImage {
 	file: TFile;
@@ -56,7 +57,7 @@ export class DeleteConfirmModal extends Modal {
 		for (let i = 0; i < Math.min(this.images.length, maxShow); i++) {
 			const img = this.images[i];
 			list.createEl('li', {
-				text: `${img.name} (${this.formatFileSize(img.size)})`
+				text: `${img.name} (${formatFileSize(img.size)})`
 			});
 		}
 		if (this.images.length > maxShow) {
@@ -106,13 +107,5 @@ export class DeleteConfirmModal extends Modal {
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
-	}
-
-	formatFileSize(bytes: number): string {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 	}
 }

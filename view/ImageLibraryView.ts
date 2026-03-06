@@ -92,9 +92,14 @@ export class ImageLibraryView extends View {
 		const imageFiles = await this.plugin.getAllImageFiles();
 
 		// 过滤图片文件夹（如果设置了）
-		const filteredImages = this.plugin.settings.imageFolder
-			? imageFiles.filter(f => f.path.startsWith(this.plugin.settings.imageFolder))
-			: imageFiles;
+		let filteredImages: TFile[];
+		if (this.plugin.settings.imageFolder) {
+			const folder = this.plugin.settings.imageFolder;
+			const prefix = folder.endsWith('/') ? folder : folder + '/';
+			filteredImages = imageFiles.filter(f => f.path.startsWith(prefix) || f.path === folder);
+		} else {
+			filteredImages = imageFiles;
+		}
 
 		// 排序图片
 		this.images = filteredImages.map(file => ({
@@ -303,6 +308,7 @@ export class ImageLibraryView extends View {
 		jumpInput.addEventListener('change', (e) => {
 			const target = e.target as HTMLInputElement;
 			let page = parseInt(target.value, 10);
+			if (isNaN(page)) page = this.currentPage;
 			page = Math.max(1, Math.min(page, totalPages));
 			this.currentPage = page;
 			this.refreshImages();

@@ -238,7 +238,9 @@ export class UnreferencedImagesView extends View {
 			item.setTitle(this.plugin.t('delete'))
 				.setIcon('trash-2')
 				.onClick(() => {
-					this.confirmDelete({ file } as UnreferencedImage);
+					const img = this.unreferencedImages.find(i => i.file.path === file.path)
+						|| { file, path: file.path, name: file.name, size: file.stat.size, modified: file.stat.mtime };
+					this.confirmDelete(img);
 				});
 		});
 

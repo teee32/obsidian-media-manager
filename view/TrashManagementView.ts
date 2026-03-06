@@ -59,6 +59,13 @@ export class TrashManagementView extends View {
 
 		try {
 			const trashPath = this.plugin.settings.trashFolder;
+
+			if (!isPathSafe(trashPath)) {
+				this.trashItems = [];
+				await this.renderView();
+				return;
+			}
+
 			const trashFolder = this.plugin.app.vault.getAbstractFileByPath(trashPath);
 
 			if (!trashFolder || !(trashFolder instanceof TFolder)) {

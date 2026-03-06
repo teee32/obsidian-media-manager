@@ -3,13 +3,16 @@ import esbuild from 'esbuild';
 const isProd = process.env.NODE_ENV === 'production';
 
 esbuild.build({
-  entryPoints: ['src/main.ts', 'src/styles.css'],
+  entryPoints: ['main.ts'],
   bundle: true,
-  external: ['obsidian', 'electron'],
+  external: ['obsidian', 'electron', '@codemirror/autocomplete', '@codemirror/collab',
+    '@codemirror/commands', '@codemirror/language', '@codemirror/lint',
+    '@codemirror/search', '@codemirror/state', '@codemirror/view'],
   format: 'cjs',
   target: 'es2020',
-  outdir: 'dist',
-  sourcemap: !isProd,
+  outfile: 'main.js',
+  sourcemap: isProd ? false : 'inline',
   minify: isProd,
   platform: 'node',
+  logLevel: 'info',
 }).catch(() => process.exit(1));

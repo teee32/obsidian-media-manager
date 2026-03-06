@@ -13,7 +13,8 @@ export class MediaPreviewModal extends Modal {
 		this.plugin = plugin;
 		this.file = file;
 		this.allFiles = allFiles.length > 0 ? allFiles : [file];
-		this.currentIndex = this.allFiles.findIndex(f => f.path === file.path);
+		const idx = this.allFiles.findIndex(f => f.path === file.path);
+		this.currentIndex = idx >= 0 ? idx : 0;
 	}
 
 	onOpen() {
@@ -200,7 +201,15 @@ export class MediaPreviewModal extends Modal {
 		const container = this.contentEl.querySelector('.preview-container');
 		if (container) {
 			this.renderMedia(container as HTMLElement);
+			const oldNav = container.querySelector('.preview-nav');
+			if (oldNav) oldNav.remove();
+			if (this.allFiles.length > 1) {
+				this.renderNavigation(container as HTMLElement);
+			}
 		}
+		const oldInfoBar = this.contentEl.querySelector('.preview-info-bar');
+		if (oldInfoBar) oldInfoBar.remove();
+		this.renderInfoBar(this.contentEl);
 	}
 
 	onClose() {

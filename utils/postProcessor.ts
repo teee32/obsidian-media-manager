@@ -1,7 +1,7 @@
 import { MarkdownPostProcessorContext, TFile } from 'obsidian';
 import ImageManagerPlugin from '../main';
 import { AlignmentType } from './imageAlignment';
-import { isSafeUrl } from './security';
+import { isSafeUrl, isPathSafe } from './security';
 
 /**
  * 图片对齐 PostProcessor
@@ -130,6 +130,7 @@ export class AlignmentPostProcessor {
 			imgEl.alt = img.alt;
 
 			if (!img.src.startsWith('http')) {
+				if (!isPathSafe(img.src)) continue;
 				const file = this.plugin.app.vault.getAbstractFileByPath(img.src);
 				if (file && file instanceof TFile) {
 					imgEl.src = this.plugin.app.vault.getResourcePath(file);

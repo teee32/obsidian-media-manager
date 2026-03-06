@@ -4,13 +4,14 @@
   "description": "Obsidian media management plugin with alignment, library view, and unused media detection",
   "main": "main.js",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc -w"
-  },
-  "dependencies": {
-    "@types/node": "^16.18.0"
+    "build": "node esbuild.config.mjs",
+    "build:release": "NODE_ENV=production node esbuild.config.mjs",
+    "typecheck": "tsc --noEmit",
+    "dev": "node esbuild.config.mjs"
   },
   "devDependencies": {
+    "@types/node": "^16.18.0",
+    "esbuild": "^0.27.3",
     "obsidian": "^1.0.0",
     "typescript": "^5.0.0"
   }

@@ -147,6 +147,11 @@ export default class ImageManagerPlugin extends Plugin {
 	async cleanupOldTrashFiles(): Promise<number> {
 		const { vault } = this.app;
 		const trashPath = this.settings.trashFolder;
+
+		if (!isPathSafe(trashPath)) {
+			return 0;
+		}
+
 		const trashFolder = vault.getAbstractFileByPath(trashPath);
 
 		// 检查隔离文件夹是否存在
@@ -159,7 +164,7 @@ export default class ImageManagerPlugin extends Plugin {
 			return 0;
 		}
 
-		const days = this.settings.trashCleanupDays;
+		const days = Math.max(1, this.settings.trashCleanupDays || 30);
 		const cutoffTime = Date.now() - (days * 24 * 60 * 60 * 1000);
 		let deletedCount = 0;
 
@@ -1009,15 +1014,26 @@ export default class ImageManagerPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		const loaded = await this.loadData();
-		const sanitized = loaded && typeof loaded === 'object'
-			? Object.fromEntries(
-				Object.entries(loaded).filter(([k]) =>
-					k !== '__proto__' && k !== 'constructor' && k !== 'prototype'
+		try {
+			const loaded = await this.loadData();
+			const sanitized = loaded && typeof loaded === 'object'
+				? Object.fromEntries(
+					Object.entries(loaded).filter(([k]) =>
+						k !== '__proto__' && k !== 'constructor' && k !== 'prototype'
+					)
 				)
-			)
-			: {};
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, sanitized);
+				: {};
+			const merged = Object.assign({}, DEFAULT_SETTINGS, sanitized);
+			merged.trashCleanupDays = Math.max(1, Math.min(365, Number(merged.trashCleanupDays) || 30));
+			merged.pageSize = Math.max(1, Math.min(1000, Number(merged.pageSize) || 50));
+			if (!['small', 'medium', 'large'].includes(merged.thumbnailSize)) {
+				merged.thumbnailSize = 'medium';
+			}
+			this.settings = merged;
+		} catch (error) {
+			console.error('加载设置失败，使用默认设置:', error);
+			this.settings = { ...DEFAULT_SETTINGS };
+		}
 	}
 
 	async saveSettings() {
@@ -1103,29 +1119,23 @@ export default class ImageManagerPlugin extends Plugin {
 			const batch = markdownFiles.slice(i, i + BATCH_SIZE);
 
 			await Promise.all(batch.map(async (file) => {
-				const content = await vault.read(file);
+				let content: string;
+				try {
+					content = await vault.read(file);
+				} catch {
+					return;
+				}
 
 				// 匹配各种链接格式
-				// [[filename.png]] 或 [[path/to/filename.png]]
-				const wikiLinkPattern = /\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
-				// [[filename.png|alias]] 带别名的
-				const wikiLinkAliasPattern = /\[\[([^|\]]+)\|([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
+				// [[filename.png]] 或 [[path/to/filename.png]] 或 [[filename.png|alias]]
+				const wikiLinkPattern = /\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))(?:\|[^\]]*)?\]\]/gi;
 				// ![alt](path/to/image.png)
 				const markdownLinkPattern = /!\[.*?\]\(([^)]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\)/gi;
 
 				let match;
 
-				// 匹配基本 Wiki 链接
+				// 匹配 Wiki 链接（含带别名的）
 				while ((match = wikiLinkPattern.exec(content)) !== null) {
-					const path = match[1].toLowerCase();
-					referenced.add(path);
-					// 添加文件名
-					const fileName = path.split('/').pop() || path;
-					referenced.add(fileName);
-				}
-
-				// 匹配带别名的 Wiki 链接
-				while ((match = wikiLinkAliasPattern.exec(content)) !== null) {
 					const path = match[1].toLowerCase();
 					referenced.add(path);
 					const fileName = path.split('/').pop() || path;
@@ -1202,7 +1212,7 @@ export default class ImageManagerPlugin extends Plugin {
 				const line = lines[i];
 				// 使用更精确的匹配：匹配图片链接格式
 				if (line.includes(imageName) &&
-					(line.includes('[[') || line.includes('![') || line.includes('](', ))) {
+					(line.includes('[[') || line.includes('![') || line.includes(']('))) {
 					results.push({ file, line: i + 1 });
 					break; // 每个文件只取第一个匹配
 				}
@@ -1356,11 +1366,11 @@ export default class ImageManagerPlugin extends Plugin {
 
 		try {
 			await vault.rename(file, originalPath);
-			new Notice(this.t('restoredFile'));
+			new Notice(this.t('restoreSuccess', { name: file.name }));
 			return true;
 		} catch (error) {
 			console.error('恢复文件失败:', error);
-			new Notice(this.t('restoreFailed'));
+			new Notice(this.t('restoreFailed', { message: (error as Error).message }));
 			return false;
 		}
 	}
