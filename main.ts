@@ -1,8 +1,11 @@
 import { Plugin, Editor, TFile, MarkdownView, Notice, Menu, MenuItem, setIcon, EditorPosition, EditorSelection, Events } from 'obsidian';
 import { ImageLibraryView, VIEW_TYPE_IMAGE_LIBRARY } from './view/ImageLibraryView';
 import { UnreferencedImagesView, VIEW_TYPE_UNREFERENCED_IMAGES } from './view/UnreferencedImagesView';
+import { TrashManagementView, VIEW_TYPE_TRASH_MANAGEMENT } from './view/TrashManagementView';
+import { MediaPreviewModal } from './view/MediaPreviewModal';
 import { ImageManagerSettings, DEFAULT_SETTINGS, SettingsTab } from './settings';
 import { ImageAlignment, AlignmentType } from './utils/imageAlignment';
+import { AlignmentPostProcessor } from './utils/postProcessor';
 
 export default class ImageManagerPlugin extends Plugin {
 	settings: ImageManagerSettings = DEFAULT_SETTINGS;
@@ -18,6 +21,13 @@ export default class ImageManagerPlugin extends Plugin {
 
 		// 注册未引用图片视图
 		this.registerView(VIEW_TYPE_UNREFERENCED_IMAGES, (leaf) => new UnreferencedImagesView(leaf, this));
+
+		// 注册隔离文件夹管理视图
+		this.registerView(VIEW_TYPE_TRASH_MANAGEMENT, (leaf) => new TrashManagementView(leaf, this));
+
+		// 注册图片对齐 PostProcessor
+		const alignmentProcessor = new AlignmentPostProcessor(this);
+		alignmentProcessor.register();
 
 		// 添加命令面板命令
 		this.addCommand({
@@ -73,6 +83,68 @@ export default class ImageManagerPlugin extends Plugin {
 
 		// 添加设置标签页
 		this.addSettingTab(new SettingsTab(this.app, this));
+
+		// 注册快捷键
+		this.registerKeyboardShortcuts();
+	}
+
+	/**
+	 * 注册快捷键
+	 */
+	registerKeyboardShortcuts() {
+		// Ctrl+Shift+M 打开媒体库
+		this.addCommand({
+			id: 'open-media-library-shortcut',
+			name: '打开媒体库',
+			hotkey: { modifiers: ['Ctrl', 'Shift'], key: 'm' },
+			callback: () => {
+				this.openImageLibrary();
+			}
+		});
+
+		// Ctrl+Shift+U 查找未引用媒体
+		this.addCommand({
+			id: 'find-unreferenced-media-shortcut',
+			name: '查找未引用媒体',
+			hotkey: { modifiers: ['Ctrl', 'Shift'], key: 'u' },
+			callback: () => {
+				this.findUnreferencedImages();
+			}
+		});
+
+		// Ctrl+Shift+T 打开隔离文件夹管理
+		this.addCommand({
+			id: 'open-trash-management-shortcut',
+			name: '打开隔离文件管理',
+			hotkey: { modifiers: ['Ctrl', 'Shift'], key: 't' },
+			callback: () => {
+				this.openTrashManagement();
+			}
+		});
+	}
+
+	/**
+	 * 打开隔离文件夹管理视图
+	 */
+	async openTrashManagement() {
+		const { workspace } = this.app;
+
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE_TRASH_MANAGEMENT)[0];
+		if (!leaf) {
+			leaf = workspace.getLeaf('tab');
+			await leaf.setViewState({
+				type: VIEW_TYPE_TRASH_MANAGEMENT,
+				active: true
+			});
+		}
+		workspace.revealLeaf(leaf);
+	}
+
+	/**
+	 * 打开媒体预览
+	 */
+	openMediaPreview(file: TFile) {
+		new MediaPreviewModal(this.app, this, file).open();
 	}
 
 	onunload() {
@@ -425,6 +497,347 @@ export default class ImageManagerPlugin extends Plugin {
 
 .settings-list li {
 	margin-bottom: 4px;
+}
+
+/* ===== 搜索框样式 ===== */
+.search-container {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 16px;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.search-input {
+	flex: 1;
+	padding: 8px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+}
+
+.search-input:focus {
+	outline: none;
+	border-color: var(--text-accent);
+}
+
+.search-icon {
+	color: var(--text-muted);
+}
+
+.search-results-count {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.clear-search {
+	padding: 4px;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.clear-search:hover {
+	color: var(--text-normal);
+}
+
+/* ===== 分页控件 ===== */
+.pagination {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	margin-top: 20px;
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.page-button {
+	padding: 6px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.page-button:hover:not(:disabled) {
+	background: var(--background-tertiary);
+}
+
+.page-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.page-info {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.page-jump-input {
+	width: 50px;
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	text-align: center;
+}
+
+/* ===== 选择模式工具栏 ===== */
+.selection-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.selection-count {
+	font-weight: 600;
+	color: var(--text-accent);
+}
+
+.toolbar-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px;
+	border: none;
+	background: var(--background-tertiary);
+	color: var(--text-normal);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.toolbar-button:hover {
+	background: var(--background-modifier-border);
+}
+
+.toolbar-button.danger {
+	color: var(--text-error);
+}
+
+.toolbar-button.danger:hover {
+	background: var(--background-modifier-error);
+	color: white;
+}
+
+/* ===== 图片选择框 ===== */
+.image-item {
+	position: relative;
+}
+
+.item-checkbox {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	z-index: 10;
+	width: 18px;
+	height: 18px;
+	cursor: pointer;
+}
+
+/* ===== 隔离文件管理视图 ===== */
+.trash-management-view {
+	height: 100%;
+	overflow-y: auto;
+	padding: 16px;
+	box-sizing: border-box;
+}
+
+.trash-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 20px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.trash-header h2 {
+	margin: 0;
+	font-size: 1.5em;
+	font-weight: 600;
+}
+
+.trash-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.trash-item {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	transition: background 0.2s;
+}
+
+.trash-item:hover {
+	background: var(--background-tertiary);
+}
+
+.item-icon {
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--background-tertiary);
+	border-radius: 4px;
+	color: var(--text-muted);
+}
+
+.item-original-path {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+
+.item-date {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+
+/* ===== 媒体预览 Modal ===== */
+.media-preview-modal {
+	max-width: 90vw;
+	max-height: 90vh;
+}
+
+.media-preview-modal .modal-content {
+	padding: 0;
+	background: var(--background-primary);
+}
+
+.preview-close {
+	position: absolute;
+	top: 10px;
+	right: 15px;
+	font-size: 24px;
+	color: var(--text-muted);
+	cursor: pointer;
+	z-index: 100;
+}
+
+.preview-close:hover {
+	color: var(--text-normal);
+}
+
+.preview-container {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 400px;
+	max-height: 70vh;
+	overflow: auto;
+}
+
+.preview-image {
+	max-width: 100%;
+	max-height: 70vh;
+	object-fit: contain;
+}
+
+.preview-video,
+.preview-audio {
+	max-width: 100%;
+}
+
+.preview-pdf {
+	width: 100%;
+	height: 70vh;
+	border: none;
+}
+
+.preview-unsupported {
+	padding: 40px;
+	color: var(--text-muted);
+}
+
+.preview-nav {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	left: 0;
+	right: 0;
+	display: flex;
+	justify-content: space-between;
+	padding: 0 20px;
+	pointer-events: none;
+}
+
+.nav-button {
+	pointer-events: auto;
+	font-size: 32px;
+	padding: 10px 15px;
+	border: none;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.nav-button:hover {
+	background: var(--background-tertiary);
+}
+
+.nav-info {
+	position: absolute;
+	bottom: 10px;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 4px 12px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.preview-info-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 20px;
+	background: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.info-name {
+	font-weight: 500;
+}
+
+.info-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.info-actions button {
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.info-actions button:hover {
+	background: var(--background-tertiary);
 }
 
 /* ===== 响应式设计 ===== */
