@@ -366,3 +366,158 @@
 		margin-top: 8px;
 	}
 }
+
+/* ===== 搜索框样式 ===== */
+.search-container {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 16px;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.search-input {
+	flex: 1;
+	padding: 8px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+}
+
+.search-input:focus {
+	outline: none;
+	border-color: var(--text-accent);
+}
+
+.search-icon {
+	color: var(--text-muted);
+}
+
+.search-results-count {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+/* ===== 分页控件 ===== */
+.pagination {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	margin-top: 20px;
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.page-button {
+	padding: 6px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.page-button:hover:not(:disabled) {
+	background: var(--background-tertiary);
+}
+
+.page-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.page-info {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* ===== 选择模式 ===== */
+.selection-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.selection-count {
+	font-weight: 600;
+	color: var(--text-accent);
+}
+
+.toolbar-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px;
+	border: none;
+	background: var(--background-tertiary);
+	color: var(--text-normal);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.toolbar-button:hover {
+	background: var(--background-modifier-border);
+}
+
+.toolbar-button.danger {
+	color: var(--text-error);
+}
+
+.image-item {
+	position: relative;
+}
+
+.item-checkbox {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	z-index: 10;
+	width: 18px;
+	height: 18px;
+	cursor: pointer;
+}
+
+/* ===== 对齐块样式 ===== */
+.alignment-block {
+	margin: 10px 0;
+}
+
+.alignment-center {
+	text-align: center;
+}
+
+.alignment-left {
+	text-align: left;
+}
+
+.alignment-right {
+	text-align: right;
+}
+
+.inline-align-center {
+	display: block;
+	text-align: center;
+	margin: 5px 0;
+}
+
+.inline-align-left {
+	display: block;
+	text-align: left;
+	margin: 5px 0;
+}
+
+.inline-align-right {
+	display: block;
+	text-align: right;
+	margin: 5px 0;
+}

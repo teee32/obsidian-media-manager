@@ -48,10 +48,11 @@
 4. 启用 "Media Manager" 插件
 
 ### 手动安装
-1. 从 GitHub releases 下载最新版本
-2. 解压到你的 Obsidian Vault 的 `.obsidian/plugins/` 目录下
-3. 重启 Obsidian
-4. 在第三方插件设置中启用插件
+1. 克隆仓库或下载源码
+2. 进入项目目录，运行 `npm install` 和 `npm run build`
+3. 将 `dist` 目录下的文件复制到你的 Obsidian Vault 的 `.obsidian/plugins/obsidian-media-manager/` 目录下
+4. 重启 Obsidian
+5. 在第三方插件设置中启用插件
 
 ## 使用说明
 
