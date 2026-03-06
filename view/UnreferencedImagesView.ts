@@ -1,4 +1,4 @@
-import { TFile, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
+import { TFile, ItemView, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { formatFileSize } from '../utils/format';
@@ -13,7 +13,7 @@ interface UnreferencedImage {
 	modified: number;
 }
 
-export class UnreferencedImagesView extends View {
+export class UnreferencedImagesView extends ItemView {
 	plugin: ImageManagerPlugin;
 	unreferencedImages: UnreferencedImage[] = [];
 	private isScanning: boolean = false;

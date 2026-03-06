@@ -1,4 +1,4 @@
-import { TFile, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
+import { TFile, ItemView, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
 import { formatFileSize, debounce } from '../utils/format';
 
@@ -13,7 +13,7 @@ interface ImageItem {
 	dimensions?: { width: number; height: number };
 }
 
-export class ImageLibraryView extends View {
+export class ImageLibraryView extends ItemView {
 	plugin: ImageManagerPlugin;
 	images: ImageItem[] = [];
 	filteredImages: ImageItem[] = [];

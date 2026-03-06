@@ -1,4 +1,4 @@
-import { TFile, TFolder, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
+import { TFile, TFolder, ItemView, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
 import { formatFileSize } from '../utils/format';
 import { getMediaType } from '../utils/mediaTypes';
@@ -15,7 +15,7 @@ interface TrashItem {
 	originalPath?: string;  // 从隔离文件夹名字中提取的原始路径
 }
 
-export class TrashManagementView extends View {
+export class TrashManagementView extends ItemView {
 	plugin: ImageManagerPlugin;
 	trashItems: TrashItem[] = [];
 	private isLoading: boolean = false;
