@@ -1,5 +1,7 @@
 import { TFile, TFolder, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
+import { formatFileSize } from '../utils/format';
+import { getMediaType } from '../utils/mediaTypes';
 
 export const VIEW_TYPE_TRASH_MANAGEMENT = 'trash-management-view';
 
@@ -96,7 +98,7 @@ export class TrashManagementView extends View {
 			console.error('加载隔离文件失败:', error);
 			this.contentEl.createDiv({
 				cls: 'error-state',
-				text: '加载隔离文件失败'
+				text: this.plugin.t('error')
 			});
 		}
 
@@ -129,7 +131,7 @@ export class TrashManagementView extends View {
 
 		const totalSize = this.trashItems.reduce((sum, item) => sum + item.size, 0);
 		stats.createSpan({
-			text: this.plugin.t('totalSize').replace('{size}', this.formatFileSize(totalSize)),
+			text: this.plugin.t('totalSize').replace('{size}', formatFileSize(totalSize)),
 			cls: 'stats-size'
 		});
 
@@ -185,7 +187,7 @@ export class TrashManagementView extends View {
 		if (item.originalPath) {
 			info.createDiv({ cls: 'item-original-path', text: `${this.plugin.t('originalPath')}: ${item.originalPath}` });
 		}
-		info.createDiv({ cls: 'item-size', text: this.formatFileSize(item.size) });
+		info.createDiv({ cls: 'item-size', text: formatFileSize(item.size) });
 		info.createDiv({ cls: 'item-date', text: `${this.plugin.t('deletedTime')}: ${new Date(item.modified).toLocaleString()}` });
 
 		// 操作按钮
@@ -231,7 +233,7 @@ export class TrashManagementView extends View {
 		menu.addSeparator();
 
 		menu.addItem((menuItem: MenuItem) => {
-			menuItem.setTitle('复制文件名')
+			menuItem.setTitle(this.plugin.t('copiedFileName'))
 				.setIcon('copy')
 				.onClick(() => {
 					navigator.clipboard.writeText(trashItem.name);
@@ -240,7 +242,7 @@ export class TrashManagementView extends View {
 		});
 
 		menu.addItem((menuItem: MenuItem) => {
-			menuItem.setTitle('复制原始路径')
+			menuItem.setTitle(this.plugin.t('copiedOriginalPath'))
 				.setIcon('link')
 				.onClick(() => {
 					if (trashItem.originalPath) {
@@ -306,23 +308,26 @@ export class TrashManagementView extends View {
 		);
 
 		if (confirmed) {
-			const deleted: string[] = [];
-			const errors: string[] = [];
+			// 使用 Promise.all 并发处理删除
+			const results = await Promise.all(
+				this.trashItems.map(item => {
+					try {
+						return this.plugin.app.vault.delete(item.file).then(() => true).catch(() => false);
+					} catch {
+						return Promise.resolve(false);
+					}
+				})
+			);
 
-			for (const item of this.trashItems) {
-				try {
-					await this.plugin.app.vault.delete(item.file);
-					deleted.push(item.name);
-				} catch (error) {
-					errors.push(item.name);
-				}
-			}
+			// 统计成功和失败的数量
+			const deleted = results.filter(r => r).length;
+			const errors = results.filter(r => !r).length;
 
-			if (deleted.length > 0) {
-				new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(deleted.length)));
+			if (deleted > 0) {
+				new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(deleted)));
 			}
-			if (errors.length > 0) {
-				new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(errors.length)) + ' (' + this.plugin.t('error') + ')');
+			if (errors > 0) {
+				new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(errors)) + ' (' + this.plugin.t('error') + ')');
 			}
 
 			await this.loadTrashItems();
@@ -333,47 +338,22 @@ export class TrashManagementView extends View {
 	 * 获取文件图标
 	 */
 	private getFileIcon(ext: string): string {
-		const iconMap: Record<string, string> = {
-			// 图片
-			'png': 'image',
-			'jpg': 'image',
-			'jpeg': 'image',
-			'gif': 'image',
-			'webp': 'image',
-			'svg': 'image',
-			'bmp': 'image',
-			// 视频
-			'mp4': 'video',
-			'mov': 'video',
-			'avi': 'video',
-			'mkv': 'video',
-			'webm': 'video',
-			// 音频
-			'mp3': 'music',
-			'wav': 'music',
-			'ogg': 'music',
-			'm4a': 'music',
-			'flac': 'music',
-			// 文档
-			'pdf': 'file-text',
-			'doc': 'file-text',
-			'docx': 'file-text',
-			'txt': 'file-text',
-			// 默认
-			'file': 'file'
-		};
+		// 使用 mediaTypes 中的 getMediaType 获取媒体类型
+		const mediaType = getMediaType(`filename.${ext}`);
 
-		return iconMap[ext] || 'file';
-	}
-
-	/**
-	 * 格式化文件大小
-	 */
-	formatFileSize(bytes: number): string {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+		switch (mediaType) {
+			case 'image':
+				return 'image';
+			case 'video':
+				return 'video';
+			case 'audio':
+				return 'music';
+			case 'document':
+				return 'file-text';
+			default:
+				return 'file';
+		}
 	}
 }
+
+// 已移除 formatFileSize 方法，使用 utils/format.ts 中的实现

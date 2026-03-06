@@ -80,7 +80,7 @@ export class MediaPreviewModal extends Modal {
 				attr: { src: this.app.vault.getResourcePath(file) }
 			});
 		} else {
-			container.createDiv({ cls: 'preview-unsupported', text: '不支持预览此类型文件' });
+			container.createDiv({ cls: 'preview-unsupported', text: this.plugin.t('unsupportedFileType') });
 		}
 	}
 
@@ -128,24 +128,24 @@ export class MediaPreviewModal extends Modal {
 
 		// 复制路径
 		const copyPathBtn = actions.createEl('button');
-		copyPathBtn.textContent = '复制路径';
+		copyPathBtn.textContent = this.plugin.t('copyPathBtn');
 		copyPathBtn.addEventListener('click', () => {
 			navigator.clipboard.writeText(file.path);
-			new Notice('路径已复制');
+			new Notice(this.plugin.t('pathCopied'));
 		});
 
 		// 复制链接
 		const copyLinkBtn = actions.createEl('button');
-		copyLinkBtn.textContent = '复制链接';
+		copyLinkBtn.textContent = this.plugin.t('copyLinkBtn');
 		copyLinkBtn.addEventListener('click', () => {
 			const link = `[[${file.name}]]`;
 			navigator.clipboard.writeText(link);
-			new Notice('链接已复制');
+			new Notice(this.plugin.t('linkCopied'));
 		});
 
 		// 在笔记中查找
 		const findBtn = actions.createEl('button');
-		findBtn.textContent = '在笔记中查找';
+		findBtn.textContent = this.plugin.t('findInNotes');
 		findBtn.addEventListener('click', () => {
 			this.close();
 			this.plugin.openImageInNotes(file);

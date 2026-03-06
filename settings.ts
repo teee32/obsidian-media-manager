@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting, DropdownComponent } from 'obsidian';
 import ImageManagerPlugin from './main';
+import { Translations } from './utils/i18n';
 
 export interface ImageManagerSettings {
 	imageFolder: string;
@@ -58,8 +59,8 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	// 翻译辅助方法
-	private t(key: string): string {
-		return this.plugin.t(key as any);
+	private t(key: keyof Translations): string {
+		return this.plugin.t(key);
 	}
 
 	display(): void {

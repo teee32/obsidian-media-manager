@@ -1,6 +1,7 @@
 import { TFile, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { formatFileSize } from '../utils/format';
 
 export const VIEW_TYPE_UNREFERENCED_IMAGES = 'unreferenced-images-view';
 
@@ -28,7 +29,7 @@ export class UnreferencedImagesView extends View {
 	}
 
 	getDisplayText() {
-		return '未引用媒体';
+		return this.plugin.t('unreferencedMedia');
 	}
 
 	async onOpen() {
@@ -51,7 +52,7 @@ export class UnreferencedImagesView extends View {
 		// 显示扫描中状态
 		const loading = this.contentEl.createDiv({ cls: 'loading-state' });
 		loading.createEl('div', { cls: 'spinner' });
-		loading.createDiv({ text: '正在扫描未引用的媒体文件...' });
+		loading.createDiv({ text: this.plugin.t('scanningUnreferenced') });
 
 		try {
 			// 查找未引用的图片
@@ -74,7 +75,7 @@ export class UnreferencedImagesView extends View {
 			console.error('扫描图片时出错:', error);
 			this.contentEl.createDiv({
 				cls: 'error-state',
-				text: '扫描图片时出错'
+				text: this.plugin.t('scanError')
 			});
 		}
 
@@ -90,7 +91,7 @@ export class UnreferencedImagesView extends View {
 		if (this.unreferencedImages.length === 0) {
 			this.contentEl.createDiv({
 				cls: 'success-state',
-				text: '太棒了！所有媒体文件都已被引用'
+				text: this.plugin.t('allMediaReferenced')
 			});
 			return;
 		}
@@ -98,13 +99,13 @@ export class UnreferencedImagesView extends View {
 		// 创建统计信息
 		const stats = this.contentEl.createDiv({ cls: 'stats-bar' });
 		stats.createSpan({
-			text: `找到 ${this.unreferencedImages.length} 个未引用的媒体文件`,
+			text: this.plugin.t('unreferencedFound').replace('{count}', String(this.unreferencedImages.length)),
 			cls: 'stats-count'
 		});
 
 		const totalSize = this.unreferencedImages.reduce((sum, img) => sum + img.size, 0);
 		stats.createSpan({
-			text: `总计 ${this.formatFileSize(totalSize)}`,
+			text: this.plugin.t('totalSizeLabel').replace('{size}', formatFileSize(totalSize)),
 			cls: 'stats-size'
 		});
 
@@ -119,10 +120,10 @@ export class UnreferencedImagesView extends View {
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'unreferenced-header' });
 
-		header.createEl('h2', { text: '未引用媒体' });
+		header.createEl('h2', { text: this.plugin.t('unreferencedMedia') });
 
 		const desc = header.createDiv({ cls: 'header-description' });
-		desc.createSpan({ text: '以下媒体文件未被任何笔记引用，可能可以删除以释放空间' });
+		desc.createSpan({ text: this.plugin.t('unreferencedDesc') });
 
 		// 重新扫描按钮
 		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
@@ -158,7 +159,7 @@ export class UnreferencedImagesView extends View {
 		const info = item.createDiv({ cls: 'item-info' });
 		info.createDiv({ cls: 'item-name', text: image.name });
 		info.createDiv({ cls: 'item-path', text: image.path });
-		info.createDiv({ cls: 'item-size', text: this.formatFileSize(image.size) });
+		info.createDiv({ cls: 'item-size', text: formatFileSize(image.size) });
 
 		// 操作按钮
 		const actions = item.createDiv({ cls: 'item-actions' });
@@ -175,7 +176,7 @@ export class UnreferencedImagesView extends View {
 		setIcon(copyBtn, 'link');
 		copyBtn.addEventListener('click', () => {
 			navigator.clipboard.writeText(image.path);
-			new Notice('文件路径已复制');
+			new Notice(this.plugin.t('pathCopied'));
 		});
 
 		// 删除按钮
@@ -196,7 +197,7 @@ export class UnreferencedImagesView extends View {
 		const menu = new Menu();
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('在笔记中查找')
+			item.setTitle(this.plugin.t('openInNotes'))
 				.setIcon('search')
 				.onClick(() => {
 					this.plugin.openImageInNotes(file);
@@ -204,26 +205,26 @@ export class UnreferencedImagesView extends View {
 		});
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('复制文件路径')
+			item.setTitle(this.plugin.t('copyPath'))
 				.setIcon('link')
 				.onClick(() => {
 					navigator.clipboard.writeText(file.path);
-					new Notice('文件路径已复制');
+					new Notice(this.plugin.t('pathCopied'));
 				});
 		});
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('复制Markdown链接')
+			item.setTitle(this.plugin.t('copyLink'))
 				.setIcon('copy')
 				.onClick(() => {
 					const link = `[[${file.name}]]`;
 					navigator.clipboard.writeText(link);
-					new Notice('Markdown链接已复制');
+					new Notice(this.plugin.t('linkCopied'));
 				});
 		});
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('打开原始文件')
+			item.setTitle(this.plugin.t('openOriginal'))
 				.setIcon('external-link')
 				.onClick(() => {
 					const src = this.app.vault.getResourcePath(file);
@@ -234,7 +235,7 @@ export class UnreferencedImagesView extends View {
 		menu.addSeparator();
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('删除图片')
+			item.setTitle(this.plugin.t('delete'))
 				.setIcon('trash-2')
 				.onClick(() => {
 					this.confirmDelete({ file } as UnreferencedImage);
@@ -265,7 +266,7 @@ export class UnreferencedImagesView extends View {
 
 	async confirmDeleteAll() {
 		if (this.unreferencedImages.length === 0) {
-			new Notice('没有需要删除的图片');
+			new Notice(this.plugin.t('noFilesToDelete'));
 			return;
 		}
 
@@ -274,23 +275,20 @@ export class UnreferencedImagesView extends View {
 			this.plugin,
 			this.unreferencedImages,
 			async () => {
-				const deleted: string[] = [];
-				const errors: string[] = [];
+				// 使用 Promise.all 并发处理删除
+				const results = await Promise.all(
+					this.unreferencedImages.map(image => this.plugin.safeDeleteFile(image.file))
+				);
 
-				for (const image of this.unreferencedImages) {
-					const success = await this.plugin.safeDeleteFile(image.file);
-					if (success) {
-						deleted.push(image.name);
-					} else {
-						errors.push(image.name);
-					}
-				}
+				// 统计成功和失败的数量
+				const deleted = this.unreferencedImages.filter((_, i) => results[i]).map(img => img.name);
+				const errors = this.unreferencedImages.filter((_, i) => !results[i]).map(img => img.name);
 
 				if (deleted.length > 0) {
-					new Notice(`已处理 ${deleted.length} 个文件`);
+					new Notice(this.plugin.t('processedFiles').replace('{count}', String(deleted.length)));
 				}
 				if (errors.length > 0) {
-					new Notice(`处理 ${errors.length} 个文件时出错`);
+					new Notice(this.plugin.t('processedFilesError').replace('{errors}', String(errors.length)));
 				}
 
 				// 重新扫描
@@ -302,14 +300,8 @@ export class UnreferencedImagesView extends View {
 	copyAllPaths() {
 		const paths = this.unreferencedImages.map(img => img.path).join('\n');
 		navigator.clipboard.writeText(paths);
-		new Notice(`已复制 ${this.unreferencedImages.length} 个文件路径`);
+		new Notice(this.plugin.t('copiedFilePaths').replace('{count}', String(this.unreferencedImages.length)));
 	}
 
-	formatFileSize(bytes: number): string {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-	}
+	// 已移除 formatFileSize 方法，使用 utils/format.ts 中的实现
 }

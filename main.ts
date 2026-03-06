@@ -1,4 +1,4 @@
-import { Plugin, Editor, TFile, MarkdownView, Notice, Menu, MenuItem, setIcon, EditorPosition, EditorSelection, Events } from 'obsidian';
+import { Plugin, Editor, TFile, TFolder, MarkdownView, Notice, Menu, MenuItem, setIcon, EditorPosition, EditorSelection, Events } from 'obsidian';
 import { ImageLibraryView, VIEW_TYPE_IMAGE_LIBRARY } from './view/ImageLibraryView';
 import { UnreferencedImagesView, VIEW_TYPE_UNREFERENCED_IMAGES } from './view/UnreferencedImagesView';
 import { TrashManagementView, VIEW_TYPE_TRASH_MANAGEMENT } from './view/TrashManagementView';
@@ -6,7 +6,8 @@ import { MediaPreviewModal } from './view/MediaPreviewModal';
 import { ImageManagerSettings, DEFAULT_SETTINGS, SettingsTab } from './settings';
 import { ImageAlignment, AlignmentType } from './utils/imageAlignment';
 import { AlignmentPostProcessor } from './utils/postProcessor';
-import { t as translate, getSystemLanguage, Language } from './utils/i18n';
+import { t as translate, getSystemLanguage, Language, Translations } from './utils/i18n';
+import { getEnabledExtensions } from './utils/mediaTypes';
 
 export default class ImageManagerPlugin extends Plugin {
 	settings: ImageManagerSettings = DEFAULT_SETTINGS;
@@ -29,7 +30,7 @@ export default class ImageManagerPlugin extends Plugin {
 	 * 翻译函数
 	 */
 	t(key: string, params?: Record<string, string | number>): string {
-		return translate(this.getCurrentLanguage(), key as any, params);
+		return translate(this.getCurrentLanguage(), key as keyof Translations, params);
 	}
 
 	async onload() {
@@ -54,7 +55,7 @@ export default class ImageManagerPlugin extends Plugin {
 		// 添加命令面板命令
 		this.addCommand({
 			id: 'open-image-library',
-			name: '图片库',
+			name: this.t('cmdImageLibrary'),
 			checkCallback: (checking: boolean) => {
 				if (checking) return true;
 				this.openImageLibrary();
@@ -63,17 +64,27 @@ export default class ImageManagerPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'find-unreferenced-images',
-			name: '查找未引用图片',
+			name: this.t('cmdFindUnreferencedImages'),
 			checkCallback: (checking: boolean) => {
 				if (checking) return true;
 				this.findUnreferencedImages();
 			}
 		});
 
+		// 缓存刷新命令
+		this.addCommand({
+			id: 'refresh-cache',
+			name: this.t('cmdRefreshCache'),
+			checkCallback: (checking: boolean) => {
+				if (checking) return true;
+				this.refreshCache();
+			}
+		});
+
 		// 图片对齐命令
 		this.addCommand({
 			id: 'align-image-left',
-			name: '图片居左对齐',
+			name: this.t('cmdAlignImageLeft'),
 			editorCallback: (editor: Editor) => {
 				this.alignSelectedImage(editor, 'left');
 			}
@@ -81,7 +92,7 @@ export default class ImageManagerPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'align-image-center',
-			name: '图片居中对齐',
+			name: this.t('cmdAlignImageCenter'),
 			editorCallback: (editor: Editor) => {
 				this.alignSelectedImage(editor, 'center');
 			}
@@ -89,7 +100,7 @@ export default class ImageManagerPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'align-image-right',
-			name: '图片居右对齐',
+			name: this.t('cmdAlignImageRight'),
 			editorCallback: (editor: Editor) => {
 				this.alignSelectedImage(editor, 'right');
 			}
@@ -108,6 +119,71 @@ export default class ImageManagerPlugin extends Plugin {
 
 		// 注册快捷键
 		this.registerKeyboardShortcuts();
+
+		// 启动时执行隔离文件夹自动清理
+		this.autoCleanupTrashOnStartup();
+	}
+
+	/**
+	 * 启动时自动清理隔离文件夹
+	 */
+	private async autoCleanupTrashOnStartup() {
+		// 检查是否启用自动清理
+		if (!this.settings.autoCleanupTrash) {
+			return;
+		}
+
+		try {
+			await this.cleanupOldTrashFiles();
+		} catch (error) {
+			console.error('自动清理隔离文件夹失败:', error);
+		}
+	}
+
+	/**
+	 * 清理过期的隔离文件
+	 */
+	async cleanupOldTrashFiles(): Promise<number> {
+		const { vault } = this.app;
+		const trashPath = this.settings.trashFolder;
+		const trashFolder = vault.getAbstractFileByPath(trashPath);
+
+		// 检查隔离文件夹是否存在
+		if (!trashFolder) {
+			return 0;
+		}
+
+		// 检查是否为文件夹
+		if (!(trashFolder instanceof TFolder)) {
+			return 0;
+		}
+
+		const days = this.settings.trashCleanupDays;
+		const cutoffTime = Date.now() - (days * 24 * 60 * 60 * 1000);
+		let deletedCount = 0;
+
+		// 获取隔离文件夹中的所有文件
+		const files = trashFolder.children;
+
+		for (const file of files) {
+			if (file instanceof TFile) {
+				// 检查文件修改时间
+				if (file.stat.mtime < cutoffTime) {
+					try {
+						await vault.delete(file);
+						deletedCount++;
+					} catch (error) {
+						console.error(`删除隔离文件失败: ${file.name}`, error);
+					}
+				}
+			}
+		}
+
+		if (deletedCount > 0) {
+			new Notice(this.t('autoCleanupComplete').replace('{count}', String(deletedCount)));
+		}
+
+		return deletedCount;
 	}
 
 	/**
@@ -117,7 +193,7 @@ export default class ImageManagerPlugin extends Plugin {
 		// Ctrl+Shift+M 打开媒体库
 		this.addCommand({
 			id: 'open-media-library-shortcut',
-			name: '打开媒体库',
+			name: this.t('cmdOpenMediaLibrary'),
 			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'm' }],
 			callback: () => {
 				this.openImageLibrary();
@@ -127,7 +203,7 @@ export default class ImageManagerPlugin extends Plugin {
 		// Ctrl+Shift+U 查找未引用媒体
 		this.addCommand({
 			id: 'find-unreferenced-media-shortcut',
-			name: '查找未引用媒体',
+			name: this.t('cmdFindUnreferencedMedia'),
 			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'u' }],
 			callback: () => {
 				this.findUnreferencedImages();
@@ -137,7 +213,7 @@ export default class ImageManagerPlugin extends Plugin {
 		// Ctrl+Shift+T 打开隔离文件夹管理
 		this.addCommand({
 			id: 'open-trash-management-shortcut',
-			name: '打开隔离文件管理',
+			name: this.t('cmdOpenTrashManagement'),
 			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 't' }],
 			callback: () => {
 				this.openTrashManagement();
@@ -172,6 +248,7 @@ export default class ImageManagerPlugin extends Plugin {
 	onunload() {
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_IMAGE_LIBRARY);
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_UNREFERENCED_IMAGES);
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_TRASH_MANAGEMENT);
 	}
 
 	// 加载样式文件
@@ -964,15 +1041,17 @@ export default class ImageManagerPlugin extends Plugin {
 
 	// 获取所有媒体文件（图片、音视频、PDF）
 	async getAllImageFiles(): Promise<TFile[]> {
-		const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
-		const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
-		const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac'];
-		const documentExtensions = ['.pdf'];
+		// 从设置中获取启用的扩展名
+		const enabledExtensions = getEnabledExtensions({
+			enableImages: this.settings.enableImages,
+			enableVideos: this.settings.enableVideos,
+			enableAudio: this.settings.enableAudio,
+			enablePDF: this.settings.enablePDF
+		});
 
-		const allExtensions = [...imageExtensions, ...videoExtensions, ...audioExtensions, ...documentExtensions];
 		const allFiles = this.app.vault.getFiles();
 		return allFiles.filter(file =>
-			allExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
+			enabledExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
 		);
 	}
 
@@ -1081,6 +1160,18 @@ export default class ImageManagerPlugin extends Plugin {
 		});
 	}
 
+	// 手动刷新缓存
+	async refreshCache() {
+		// 清除缓存
+		this.referencedImagesCache = null;
+		this.cacheTimestamp = 0;
+
+		// 重新获取引用
+		await this.getReferencedImages();
+
+		new Notice(this.t('scanComplete'));
+	}
+
 	// 打开图片所在的笔记
 	async openImageInNotes(imageFile: TFile) {
 		const { workspace, vault } = this.app;
@@ -1123,7 +1214,7 @@ export default class ImageManagerPlugin extends Plugin {
 				}, 100);
 			}
 		} else {
-			new Notice('该图片未被任何笔记引用');
+			new Notice(this.t('notReferenced'));
 		}
 	}
 
@@ -1131,19 +1222,22 @@ export default class ImageManagerPlugin extends Plugin {
 	alignSelectedImage(editor: Editor, alignment: 'left' | 'center' | 'right') {
 		const selection = editor.getSelection();
 		if (!selection) {
-			new Notice('请先选中一张图片');
+			new Notice(this.t('selectImageFirst'));
 			return;
 		}
 
 		// 检查是否选中的是图片
 		if (!selection.includes('![') && !selection.includes('[[')) {
-			new Notice('请选中图片');
+			new Notice(this.t('selectImage'));
 			return;
 		}
 
 		const alignedText = ImageAlignment.applyAlignment(selection, alignment);
 		editor.replaceSelection(alignedText);
-		new Notice(`图片已${alignment === 'left' ? '居左' : alignment === 'center' ? '居中' : '居右'}对齐`);
+
+		// 根据对齐方式显示对应的消息
+		const alignmentKey = alignment === 'left' ? 'imageAlignedLeft' : alignment === 'center' ? 'imageAlignedCenter' : 'imageAlignedRight';
+		new Notice(this.t(alignmentKey as any));
 	}
 
 	// 添加编辑器上下文菜单项
@@ -1158,7 +1252,7 @@ export default class ImageManagerPlugin extends Plugin {
 		menu.addSeparator();
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('图片居左对齐')
+			item.setTitle(this.t('alignImageLeft'))
 				.setIcon('align-left')
 				.onClick(() => {
 					this.alignSelectedImage(editor, 'left');
@@ -1166,7 +1260,7 @@ export default class ImageManagerPlugin extends Plugin {
 		});
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('图片居中对齐')
+			item.setTitle(this.t('alignImageCenter'))
 				.setIcon('align-center')
 				.onClick(() => {
 					this.alignSelectedImage(editor, 'center');
@@ -1174,7 +1268,7 @@ export default class ImageManagerPlugin extends Plugin {
 		});
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('图片居右对齐')
+			item.setTitle(this.t('alignImageRight'))
 				.setIcon('align-right')
 				.onClick(() => {
 					this.alignSelectedImage(editor, 'right');
@@ -1193,7 +1287,7 @@ export default class ImageManagerPlugin extends Plugin {
 				return true;
 			} catch (error) {
 				console.error('删除文件失败:', error);
-				new Notice(`删除失败: ${file.name}`);
+				new Notice(this.t('deleteFailedWithName', { name: file.name }));
 				return false;
 			}
 		}
@@ -1215,18 +1309,18 @@ export default class ImageManagerPlugin extends Plugin {
 
 			// 移动文件到隔离文件夹
 			await vault.rename(file, targetPath);
-			new Notice(`已移至隔离文件夹: ${fileName}`);
+			new Notice(this.t('movedToTrash', { name: fileName }));
 			return true;
 		} catch (error) {
 			console.error('移动文件到隔离文件夹失败:', error);
 			// 如果移动失败，尝试直接删除
 			try {
 				await vault.delete(file);
-				new Notice(`已删除: ${fileName}（隔离失败）`);
+				new Notice(this.t('deletedWithQuarantineFailed', { name: fileName }));
 				return true;
 			} catch (deleteError) {
 				console.error('删除文件失败:', deleteError);
-				new Notice(`操作失败: ${fileName}`);
+				new Notice(this.t('operationFailed', { name: fileName }));
 				return false;
 			}
 		}
@@ -1238,11 +1332,11 @@ export default class ImageManagerPlugin extends Plugin {
 
 		try {
 			await vault.rename(file, originalPath);
-			new Notice(`已恢复文件`);
+			new Notice(this.t('restoredFile'));
 			return true;
 		} catch (error) {
 			console.error('恢复文件失败:', error);
-			new Notice(`恢复失败`);
+			new Notice(this.t('restoreFailed'));
 			return false;
 		}
 	}
@@ -1253,11 +1347,11 @@ export default class ImageManagerPlugin extends Plugin {
 
 		try {
 			await vault.delete(file);
-			new Notice(`已彻底删除: ${file.name}`);
+			new Notice(this.t('fileDeleted', { name: file.name }));
 			return true;
 		} catch (error) {
 			console.error('彻底删除文件失败:', error);
-			new Notice(`删除失败`);
+			new Notice(this.t('deleteFailed'));
 			return false;
 		}
 	}

@@ -1,5 +1,6 @@
 import { TFile, View, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
+import { formatFileSize, debounce } from '../utils/format';
 
 export const VIEW_TYPE_IMAGE_LIBRARY = 'image-library-view';
 
@@ -22,10 +23,18 @@ export class ImageLibraryView extends View {
 	private pageSize: number = 50;
 	private selectedFiles: Set<string> = new Set();
 	private isSelectionMode: boolean = false;
+	private searchInput: HTMLInputElement | null = null;
+	private settingsChangeCallback: () => void = () => {};
 
 	constructor(leaf: WorkspaceLeaf, plugin: ImageManagerPlugin) {
 		super(leaf);
 		this.plugin = plugin;
+
+		// 创建设置变更回调
+		this.settingsChangeCallback = () => {
+			// 设置变更时自动刷新视图
+			this.onSettingsChanged();
+		};
 	}
 
 	getViewType() {
@@ -39,11 +48,34 @@ export class ImageLibraryView extends View {
 	async onOpen() {
 		this.contentEl = this.containerEl.children[1] as HTMLElement;
 		this.contentEl.addClass('image-library-view');
+		// 从设置中读取 pageSize
+		this.pageSize = this.plugin.settings.pageSize || 50;
 		await this.refreshImages();
+
+		// 注册设置变更监听
+		// @ts-ignore - setting-changed event
+		this.registerEvent(this.app.workspace.on('setting-changed', this.settingsChangeCallback));
 	}
 
 	async onClose() {
-		// 清理工作
+		// 清理工作 - 事件监听会在 View 卸载时自动清理
+	}
+
+	/**
+	 * 设置变更处理
+	 */
+	private async onSettingsChanged() {
+		// 重新读取 pageSize
+		this.pageSize = this.plugin.settings.pageSize || 50;
+
+		// 如果当前页码超出范围，重置到第一页
+		const totalPages = Math.ceil(this.filteredImages.length / this.pageSize);
+		if (this.currentPage > totalPages && totalPages > 0) {
+			this.currentPage = 1;
+		}
+
+		// 刷新视图
+		await this.refreshImages();
 	}
 
 	async refreshImages() {
@@ -109,7 +141,7 @@ export class ImageLibraryView extends View {
 		if (this.filteredImages.length === 0) {
 			this.contentEl.createDiv({
 				cls: 'empty-state',
-				text: this.searchQuery ? '没有匹配的文件' : '未找到媒体文件'
+				text: this.searchQuery ? this.plugin.t('noMatchingFiles') : this.plugin.t('noMediaFiles')
 			});
 		}
 	}
@@ -136,14 +168,14 @@ export class ImageLibraryView extends View {
 	renderSearchBox() {
 		const searchContainer = this.contentEl.createDiv({ cls: 'search-container' });
 
-		const searchInput = searchContainer.createEl('input', {
+		this.searchInput = searchContainer.createEl('input', {
 			type: 'text',
 			cls: 'search-input',
 			attr: {
-				placeholder: '搜索文件名...',
+				placeholder: this.plugin.t('searchPlaceholder'),
 				value: this.searchQuery
 			}
-		});
+		}) as HTMLInputElement;
 
 		// 搜索图标
 		const searchIcon = searchContainer.createDiv({ cls: 'search-icon' });
@@ -160,17 +192,22 @@ export class ImageLibraryView extends View {
 			});
 		}
 
-		searchInput.addEventListener('input', (e) => {
-			const target = e.target as HTMLInputElement;
-			this.searchQuery = target.value;
+		// 使用防抖处理搜索输入
+		const debouncedSearch = debounce(() => {
 			this.applySearch();
 			this.refreshImages();
+		}, 300);
+
+		this.searchInput.addEventListener('input', (e) => {
+			const target = e.target as HTMLInputElement;
+			this.searchQuery = target.value;
+			debouncedSearch();
 		});
 
 		// 显示结果计数
 		if (this.searchQuery) {
 			searchContainer.createSpan({
-				text: `找到 ${this.filteredImages.length} 个结果`,
+				text: this.plugin.t('searchResults').replace('{count}', String(this.filteredImages.length)),
 				cls: 'search-results-count'
 			});
 		}
@@ -183,7 +220,7 @@ export class ImageLibraryView extends View {
 		const toolbar = this.contentEl.createDiv({ cls: 'selection-toolbar' });
 
 		toolbar.createSpan({
-			text: `已选择 ${this.selectedFiles.size} 个文件`,
+			text: this.plugin.t('selectFiles').replace('{count}', String(this.selectedFiles.size)),
 			cls: 'selection-count'
 		});
 
@@ -225,7 +262,7 @@ export class ImageLibraryView extends View {
 
 		// 上一页
 		const prevBtn = pagination.createEl('button', { cls: 'page-button' });
-		prevBtn.textContent = '上一页';
+		prevBtn.textContent = this.plugin.t('prevPage');
 		prevBtn.disabled = this.currentPage <= 1;
 		prevBtn.addEventListener('click', () => {
 			if (this.currentPage > 1) {
@@ -236,13 +273,15 @@ export class ImageLibraryView extends View {
 
 		// 页码信息
 		pagination.createSpan({
-			text: `第 ${this.currentPage} / ${totalPages} 页`,
+			text: this.plugin.t('pageInfo')
+				.replace('{current}', String(this.currentPage))
+				.replace('{total}', String(totalPages)),
 			cls: 'page-info'
 		});
 
 		// 下一页
 		const nextBtn = pagination.createEl('button', { cls: 'page-button' });
-		nextBtn.textContent = '下一页';
+		nextBtn.textContent = this.plugin.t('nextPage');
 		nextBtn.disabled = this.currentPage >= totalPages;
 		nextBtn.addEventListener('click', () => {
 			if (this.currentPage < totalPages) {
@@ -275,12 +314,12 @@ export class ImageLibraryView extends View {
 	 */
 	async deleteSelected() {
 		if (this.selectedFiles.size === 0) {
-			new Notice('请先选择要删除的文件');
+			new Notice(this.plugin.t('confirmDeleteSelected').replace('{count}', '0'));
 			return;
 		}
 
 		const confirmed = confirm(
-			`确定要删除选中的 ${this.selectedFiles.size} 个文件吗？`
+			this.plugin.t('confirmDeleteSelected').replace('{count}', String(this.selectedFiles.size))
 		);
 
 		if (confirmed) {
@@ -298,10 +337,10 @@ export class ImageLibraryView extends View {
 			const failCount = results.filter(r => !r).length;
 
 			if (successCount > 0) {
-				new Notice(`已删除 ${successCount} 个文件`);
+				new Notice(this.plugin.t('deletedFiles').replace('{count}', String(successCount)));
 			}
 			if (failCount > 0) {
-				new Notice(`删除 ${failCount} 个文件失败`, 3000);
+				new Notice(this.plugin.t('deleteFilesFailed').replace('{count}', String(failCount)), 3000);
 			}
 
 			this.selectedFiles.clear();
@@ -313,10 +352,10 @@ export class ImageLibraryView extends View {
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'image-library-header' });
 
-		header.createEl('h2', { text: '媒体库' });
+		header.createEl('h2', { text: this.plugin.t('mediaLibrary') });
 
 		const stats = header.createDiv({ cls: 'image-stats' });
-		stats.createSpan({ text: `共 ${this.filteredImages.length} 个媒体文件` });
+		stats.createSpan({ text: this.plugin.t('totalMediaFiles').replace('{count}', String(this.filteredImages.length)) });
 
 		// 刷新按钮
 		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
@@ -333,14 +372,14 @@ export class ImageLibraryView extends View {
 			}
 			this.refreshImages();
 		});
-		selectBtn.title = '多选模式';
+		selectBtn.title = this.plugin.t('multiSelectMode');
 
 		// 排序选项
 		const sortSelect = header.createEl('select', { cls: 'sort-select' });
 		const options = [
-			{ value: 'name', text: '名称' },
-			{ value: 'date', text: '日期' },
-			{ value: 'size', text: '大小' }
+			{ value: 'name', text: this.plugin.t('sortByName') },
+			{ value: 'date', text: this.plugin.t('sortByDate') },
+			{ value: 'size', text: this.plugin.t('sortBySize') }
 		];
 		options.forEach(opt => {
 			const option = sortSelect.createEl('option', { value: opt.value, text: opt.text });
@@ -353,6 +392,7 @@ export class ImageLibraryView extends View {
 			this.plugin.settings.sortBy = target.value as 'name' | 'date' | 'size';
 			await this.plugin.saveSettings();
 			this.sortImages();
+			this.currentPage = 1; // 排序变化后重置到第一页
 			this.refreshImages();
 		});
 
@@ -362,6 +402,7 @@ export class ImageLibraryView extends View {
 			this.plugin.settings.sortOrder = this.plugin.settings.sortOrder === 'asc' ? 'desc' : 'asc';
 			await this.plugin.saveSettings();
 			this.sortImages();
+			this.currentPage = 1; // 排序顺序变化后重置到第一页
 			this.refreshImages();
 		});
 		setIcon(orderBtn, this.plugin.settings.sortOrder === 'asc' ? 'arrow-up' : 'arrow-down');
@@ -445,7 +486,7 @@ export class ImageLibraryView extends View {
 		if (this.plugin.settings.showImageInfo) {
 			const info = item.createDiv({ cls: 'image-info' });
 			info.createDiv({ cls: 'image-name', text: image.name });
-			info.createDiv({ cls: 'image-size', text: this.formatFileSize(image.size) });
+			info.createDiv({ cls: 'image-size', text: formatFileSize(image.size) });
 		}
 	}
 
@@ -453,7 +494,7 @@ export class ImageLibraryView extends View {
 		const menu = new Menu();
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('在笔记中查找')
+			item.setTitle(this.plugin.t('openInNotes'))
 				.setIcon('search')
 				.onClick(() => {
 					this.plugin.openImageInNotes(file);
@@ -461,26 +502,26 @@ export class ImageLibraryView extends View {
 		});
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('复制文件路径')
+			item.setTitle(this.plugin.t('copyPath'))
 				.setIcon('link')
 				.onClick(() => {
 					navigator.clipboard.writeText(file.path);
-					new Notice('文件路径已复制');
+					new Notice(this.plugin.t('pathCopied'));
 				});
 		});
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('复制Markdown链接')
+			item.setTitle(this.plugin.t('copyLink'))
 				.setIcon('copy')
 				.onClick(() => {
 					const link = `[[${file.name}]]`;
 					navigator.clipboard.writeText(link);
-					new Notice('Markdown链接已复制');
+					new Notice(this.plugin.t('linkCopied'));
 				});
 		});
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle('打开原始文件')
+			item.setTitle(this.plugin.t('openOriginal'))
 				.setIcon('external-link')
 				.onClick(() => {
 					const src = this.app.vault.getResourcePath(file);
@@ -491,11 +532,5 @@ export class ImageLibraryView extends View {
 		menu.showAtPosition({ x: event.clientX, y: event.clientY });
 	}
 
-	formatFileSize(bytes: number): string {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-	}
+	// 已移除 formatFileSize 方法，使用 utils/format.ts 中的实现
 }

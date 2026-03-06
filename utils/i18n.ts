@@ -94,6 +94,7 @@ export interface Translations {
 	trashFolderPathDesc: string;
 	autoCleanupTrash: string;
 	autoCleanupTrashDesc: string;
+	autoCleanupComplete: string;
 	cleanupDays: string;
 	cleanupDaysDesc: string;
 	mediaTypes: string;
@@ -150,6 +151,72 @@ export interface Translations {
 	deleteFailed: string;
 	fileNameCopied: string;
 	originalPathCopied: string;
+
+	// 未引用图片视图
+	scanningUnreferenced: string;
+	totalSizeLabel: string;
+	scanError: string;
+	unreferencedDesc: string;
+	noFilesToDelete: string;
+	processedFiles: string;
+	processedFilesError: string;
+	copyAllPaths: string;
+	copiedFilePaths: string;
+
+	// 图片库视图
+	noMatchingFiles: string;
+	prevPage: string;
+	nextPage: string;
+	pageInfo: string;
+	selectFiles: string;
+	selectAll: string;
+	deselectAll: string;
+	confirmDeleteSelected: string;
+	deletedFiles: string;
+	deleteFilesFailed: string;
+	multiSelectMode: string;
+
+	// 媒体预览
+	unsupportedFileType: string;
+	copyPathBtn: string;
+	copyLinkBtn: string;
+	findInNotes: string;
+	pathCopied: string;
+	linkCopied: string;
+
+	// 图片对齐
+	alignImageLeft: string;
+	alignImageCenter: string;
+	alignImageRight: string;
+	selectImageFirst: string;
+	selectImage: string;
+	imageAlignedLeft: string;
+	imageAlignedCenter: string;
+	imageAlignedRight: string;
+
+	// 隔离文件夹操作
+	copiedFileName: string;
+	copiedOriginalPath: string;
+	notReferenced: string;
+	movedToTrash: string;
+	deletedFile: string;
+	restoredFile: string;
+
+	// 命令名称
+	cmdImageLibrary: string;
+	cmdFindUnreferencedImages: string;
+	cmdRefreshCache: string;
+	cmdAlignImageLeft: string;
+	cmdAlignImageCenter: string;
+	cmdAlignImageRight: string;
+	cmdOpenMediaLibrary: string;
+	cmdFindUnreferencedMedia: string;
+	cmdOpenTrashManagement: string;
+
+	// 删除操作
+	deleteFailedWithName: string;
+	deletedWithQuarantineFailed: string;
+	operationFailed: string;
 }
 
 const zh: Translations = {
@@ -241,6 +308,7 @@ const zh: Translations = {
 	trashFolderPathDesc: '隔离文件夹的路径（相对路径）',
 	autoCleanupTrash: '自动清理隔离文件夹',
 	autoCleanupTrashDesc: '自动清理隔离文件夹中的旧文件',
+	autoCleanupComplete: '自动清理完成，已删除 {count} 个文件',
 	cleanupDays: '清理天数',
 	cleanupDaysDesc: '隔离文件夹中的文件超过此天数后将自动删除',
 	mediaTypes: '媒体类型',
@@ -296,7 +364,73 @@ const zh: Translations = {
 	restoreFailed: '恢复失败: {message}',
 	deleteFailed: '删除失败',
 	fileNameCopied: '文件名已复制',
-	originalPathCopied: '原始路径已复制'
+	originalPathCopied: '原始路径已复制',
+
+	// 未引用图片视图
+	scanningUnreferenced: '正在扫描未引用的媒体文件...',
+	totalSizeLabel: '总计 {size}',
+	scanError: '扫描图片时出错',
+	unreferencedDesc: '以下媒体文件未被任何笔记引用，可能可以删除以释放空间',
+	noFilesToDelete: '没有需要删除的图片',
+	processedFiles: '已处理 {count} 个文件',
+	processedFilesError: '处理 {errors} 个文件时出错',
+	copyAllPaths: '复制所有路径',
+	copiedFilePaths: '已复制 {count} 个文件路径',
+
+	// 图片库视图
+	noMatchingFiles: '没有匹配的文件',
+	prevPage: '上一页',
+	nextPage: '下一页',
+	pageInfo: '第 {current} / {total} 页',
+	selectFiles: '已选择 {count} 个文件',
+	selectAll: '全选',
+	deselectAll: '取消全选',
+	confirmDeleteSelected: '确定要删除选中的 {count} 个文件吗？',
+	deletedFiles: '已删除 {count} 个文件',
+	deleteFilesFailed: '删除 {count} 个文件失败',
+	multiSelectMode: '多选模式',
+
+	// 媒体预览
+	unsupportedFileType: '不支持预览此类型文件',
+	copyPathBtn: '复制路径',
+	copyLinkBtn: '复制链接',
+	findInNotes: '在笔记中查找',
+	pathCopied: '路径已复制',
+	linkCopied: '链接已复制',
+
+	// 图片对齐
+	alignImageLeft: '图片居左对齐',
+	alignImageCenter: '图片居中对齐',
+	alignImageRight: '图片居右对齐',
+	selectImageFirst: '请先选中一张图片',
+	selectImage: '请选中图片',
+	imageAlignedLeft: '图片已居左对齐',
+	imageAlignedCenter: '图片已居中对齐',
+	imageAlignedRight: '图片已居右对齐',
+
+	// 隔离文件夹操作
+	copiedFileName: '已复制文件名',
+	copiedOriginalPath: '已复制原始路径',
+	notReferenced: '该图片未被任何笔记引用',
+	movedToTrash: '已移至隔离文件夹: {name}',
+	deletedFile: '已删除: {name}',
+	restoredFile: '已恢复文件',
+
+	// 命令名称
+	cmdImageLibrary: '图片库',
+	cmdFindUnreferencedImages: '查找未引用图片',
+	cmdRefreshCache: '刷新媒体引用缓存',
+	cmdAlignImageLeft: '图片居左对齐',
+	cmdAlignImageCenter: '图片居中对齐',
+	cmdAlignImageRight: '图片居右对齐',
+	cmdOpenMediaLibrary: '打开媒体库',
+	cmdFindUnreferencedMedia: '查找未引用媒体',
+	cmdOpenTrashManagement: '打开隔离文件管理',
+
+	// 删除操作
+	deleteFailedWithName: '删除失败: {name}',
+	deletedWithQuarantineFailed: '已删除: {name}（隔离失败）',
+	operationFailed: '操作失败: {name}'
 };
 
 const en: Translations = {
@@ -388,6 +522,7 @@ const en: Translations = {
 	trashFolderPathDesc: 'Path to trash folder (relative path)',
 	autoCleanupTrash: 'Auto Cleanup Trash',
 	autoCleanupTrashDesc: 'Automatically clean up old files in trash folder',
+	autoCleanupComplete: 'Auto cleanup complete, deleted {count} files',
 	cleanupDays: 'Cleanup Days',
 	cleanupDaysDesc: 'Files older than this many days will be automatically deleted',
 	mediaTypes: 'Media Types',
@@ -443,7 +578,73 @@ const en: Translations = {
 	restoreFailed: 'Restore failed: {message}',
 	deleteFailed: 'Delete failed',
 	fileNameCopied: 'File name copied',
-	originalPathCopied: 'Original path copied'
+	originalPathCopied: 'Original path copied',
+
+	// Unreferenced Images View
+	scanningUnreferenced: 'Scanning unreferenced media files...',
+	totalSizeLabel: 'Total: {size}',
+	scanError: 'Error scanning images',
+	unreferencedDesc: 'These media files are not referenced by any notes and can be deleted to free up space',
+	noFilesToDelete: 'No files to delete',
+	processedFiles: 'Processed {count} files',
+	processedFilesError: 'Error processing {errors} files',
+	copyAllPaths: 'Copy all paths',
+	copiedFilePaths: 'Copied {count} file paths',
+
+	// Image Library View
+	noMatchingFiles: 'No matching files',
+	prevPage: 'Previous',
+	nextPage: 'Next',
+	pageInfo: 'Page {current} / {total}',
+	selectFiles: '{count} files selected',
+	selectAll: 'Select All',
+	deselectAll: 'Deselect All',
+	confirmDeleteSelected: 'Are you sure you want to delete {count} selected files?',
+	deletedFiles: '{count} files deleted',
+	deleteFilesFailed: 'Failed to delete {count} files',
+	multiSelectMode: 'Multi-select mode',
+
+	// Media Preview
+	unsupportedFileType: 'Preview not supported for this file type',
+	copyPathBtn: 'Copy Path',
+	copyLinkBtn: 'Copy Link',
+	findInNotes: 'Find in Notes',
+	pathCopied: 'Path copied',
+	linkCopied: 'Link copied',
+
+	// Image alignment
+	alignImageLeft: 'Align Image Left',
+	alignImageCenter: 'Align Image Center',
+	alignImageRight: 'Align Image Right',
+	selectImageFirst: 'Please select an image first',
+	selectImage: 'Please select an image',
+	imageAlignedLeft: 'Image aligned to left',
+	imageAlignedCenter: 'Image centered',
+	imageAlignedRight: 'Image aligned to right',
+
+	// Trash folder operations
+	copiedFileName: 'File name copied',
+	copiedOriginalPath: 'Original path copied',
+	notReferenced: 'This image is not referenced by any notes',
+	movedToTrash: 'Moved to trash folder: {name}',
+	deletedFile: 'Deleted: {name}',
+	restoredFile: 'File restored',
+
+	// Command names
+	cmdImageLibrary: 'Image Library',
+	cmdFindUnreferencedImages: 'Find Unreferenced Images',
+	cmdRefreshCache: 'Refresh Media Reference Cache',
+	cmdAlignImageLeft: 'Align Image Left',
+	cmdAlignImageCenter: 'Align Image Center',
+	cmdAlignImageRight: 'Align Image Right',
+	cmdOpenMediaLibrary: 'Open Media Library',
+	cmdFindUnreferencedMedia: 'Find Unreferenced Media',
+	cmdOpenTrashManagement: 'Open Trash Management',
+
+	// Delete operations
+	deleteFailedWithName: 'Delete failed: {name}',
+	deletedWithQuarantineFailed: 'Deleted: {name} (quarantine failed)',
+	operationFailed: 'Operation failed: {name}'
 };
 
 const translations: Record<Language, Translations> = { zh, en };
