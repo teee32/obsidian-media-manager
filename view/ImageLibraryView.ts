@@ -15,7 +15,13 @@ interface ImageItem {
 export class ImageLibraryView extends View {
 	plugin: ImageManagerPlugin;
 	images: ImageItem[] = [];
+	filteredImages: ImageItem[] = [];
 	private contentEl!: HTMLElement;
+	private searchQuery: string = '';
+	private currentPage: number = 1;
+	private pageSize: number = 50;
+	private selectedFiles: Set<string> = new Set();
+	private isSelectionMode: boolean = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ImageManagerPlugin) {
 		super(leaf);
@@ -69,23 +75,226 @@ export class ImageLibraryView extends View {
 
 		this.sortImages();
 
+		// 应用搜索过滤
+		this.applySearch();
+
 		// 创建头部（在获取数据之后渲染）
 		this.renderHeader();
+
+		// 创建搜索框
+		this.renderSearchBox();
+
+		// 创建选择模式工具栏
+		if (this.isSelectionMode) {
+			this.renderSelectionToolbar();
+		}
 
 		// 创建图片网格容器
 		const grid = this.contentEl.createDiv({ cls: 'image-grid' });
 		grid.addClass(`image-grid-${size}`);
 
-		// 渲染图片
-		for (const image of this.images) {
+		// 计算分页
+		const startIndex = (this.currentPage - 1) * this.pageSize;
+		const endIndex = Math.min(startIndex + this.pageSize, this.filteredImages.length);
+		const pageImages = this.filteredImages.slice(startIndex, endIndex);
+
+		// 渲染当前页的图片
+		for (const image of pageImages) {
 			this.renderImageItem(grid, image);
 		}
 
-		if (this.images.length === 0) {
+		// 创建分页控件
+		this.renderPagination();
+
+		if (this.filteredImages.length === 0) {
 			this.contentEl.createDiv({
 				cls: 'empty-state',
-				text: '未找到媒体文件'
+				text: this.searchQuery ? '没有匹配的文件' : '未找到媒体文件'
 			});
+		}
+	}
+
+	/**
+	 * 应用搜索过滤
+	 */
+	applySearch() {
+		if (!this.searchQuery) {
+			this.filteredImages = [...this.images];
+		} else {
+			const query = this.searchQuery.toLowerCase();
+			this.filteredImages = this.images.filter(img =>
+				img.name.toLowerCase().includes(query) ||
+				img.path.toLowerCase().includes(query)
+			);
+		}
+		this.currentPage = 1;  // 重置到第一页
+	}
+
+	/**
+	 * 渲染搜索框
+	 */
+	renderSearchBox() {
+		const searchContainer = this.contentEl.createDiv({ cls: 'search-container' });
+
+		const searchInput = searchContainer.createEl('input', {
+			type: 'text',
+			cls: 'search-input',
+			attr: {
+				placeholder: '搜索文件名...',
+				value: this.searchQuery
+			}
+		});
+
+		// 搜索图标
+		const searchIcon = searchContainer.createDiv({ cls: 'search-icon' });
+		setIcon(searchIcon, 'search');
+
+		// 清除搜索按钮
+		if (this.searchQuery) {
+			const clearBtn = searchContainer.createEl('button', { cls: 'clear-search' });
+			setIcon(clearBtn, 'x');
+			clearBtn.addEventListener('click', () => {
+				this.searchQuery = '';
+				this.applySearch();
+				this.refreshImages();
+			});
+		}
+
+		searchInput.addEventListener('input', (e) => {
+			const target = e.target as HTMLInputElement;
+			this.searchQuery = target.value;
+			this.applySearch();
+			this.refreshImages();
+		});
+
+		// 显示结果计数
+		if (this.searchQuery) {
+			searchContainer.createSpan({
+				text: `找到 ${this.filteredImages.length} 个结果`,
+				cls: 'search-results-count'
+			});
+		}
+	}
+
+	/**
+	 * 渲染选择模式工具栏
+	 */
+	renderSelectionToolbar() {
+		const toolbar = this.contentEl.createDiv({ cls: 'selection-toolbar' });
+
+		toolbar.createSpan({
+			text: `已选择 ${this.selectedFiles.size} 个文件`,
+			cls: 'selection-count'
+		});
+
+		const selectAllBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
+		setIcon(selectAllBtn, 'check-square');
+		selectAllBtn.addEventListener('click', () => {
+			this.filteredImages.forEach(img => this.selectedFiles.add(img.file.path));
+			this.refreshImages();
+		});
+
+		const deselectAllBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
+		setIcon(deselectAllBtn, 'square');
+		deselectAllBtn.addEventListener('click', () => {
+			this.selectedFiles.clear();
+			this.refreshImages();
+		});
+
+		const deleteSelectedBtn = toolbar.createEl('button', { cls: 'toolbar-button danger' });
+		setIcon(deleteSelectedBtn, 'trash-2');
+		deleteSelectedBtn.addEventListener('click', () => this.deleteSelected());
+
+		const exitSelectionBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
+		setIcon(exitSelectionBtn, 'x');
+		exitSelectionBtn.addEventListener('click', () => {
+			this.isSelectionMode = false;
+			this.selectedFiles.clear();
+			this.refreshImages();
+		});
+	}
+
+	/**
+	 * 渲染分页控件
+	 */
+	renderPagination() {
+		const totalPages = Math.ceil(this.filteredImages.length / this.pageSize);
+		if (totalPages <= 1) return;
+
+		const pagination = this.contentEl.createDiv({ cls: 'pagination' });
+
+		// 上一页
+		const prevBtn = pagination.createEl('button', { cls: 'page-button' });
+		prevBtn.textContent = '上一页';
+		prevBtn.disabled = this.currentPage <= 1;
+		prevBtn.addEventListener('click', () => {
+			if (this.currentPage > 1) {
+				this.currentPage--;
+				this.refreshImages();
+			}
+		});
+
+		// 页码信息
+		pagination.createSpan({
+			text: `第 ${this.currentPage} / ${totalPages} 页`,
+			cls: 'page-info'
+		});
+
+		// 下一页
+		const nextBtn = pagination.createEl('button', { cls: 'page-button' });
+		nextBtn.textContent = '下一页';
+		nextBtn.disabled = this.currentPage >= totalPages;
+		nextBtn.addEventListener('click', () => {
+			if (this.currentPage < totalPages) {
+				this.currentPage++;
+				this.refreshImages();
+			}
+		});
+
+		// 跳转到页
+		const jumpInput = pagination.createEl('input', {
+			type: 'number',
+			cls: 'page-jump-input',
+			attr: {
+				min: '1',
+				max: String(totalPages),
+				value: String(this.currentPage)
+			}
+		});
+		jumpInput.addEventListener('change', (e) => {
+			const target = e.target as HTMLInputElement;
+			let page = parseInt(target.value, 10);
+			page = Math.max(1, Math.min(page, totalPages));
+			this.currentPage = page;
+			this.refreshImages();
+		});
+	}
+
+	/**
+	 * 删除选中的文件
+	 */
+	async deleteSelected() {
+		if (this.selectedFiles.size === 0) {
+			new Notice('请先选择要删除的文件');
+			return;
+		}
+
+		const confirmed = confirm(
+			`确定要删除选中的 ${this.selectedFiles.size} 个文件吗？`
+		);
+
+		if (confirmed) {
+			const filesToDelete = this.filteredImages.filter(img =>
+				this.selectedFiles.has(img.file.path)
+			);
+
+			for (const img of filesToDelete) {
+				await this.plugin.safeDeleteFile(img.file);
+			}
+
+			this.selectedFiles.clear();
+			this.isSelectionMode = false;
+			await this.refreshImages();
 		}
 	}
 
@@ -95,12 +304,24 @@ export class ImageLibraryView extends View {
 		header.createEl('h2', { text: '媒体库' });
 
 		const stats = header.createDiv({ cls: 'image-stats' });
-		stats.createSpan({ text: `共 ${this.images.length} 个媒体文件` });
+		stats.createSpan({ text: `共 ${this.filteredImages.length} 个媒体文件` });
 
 		// 刷新按钮
 		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
 		setIcon(refreshBtn, 'refresh-cw');
 		refreshBtn.addEventListener('click', () => this.refreshImages());
+
+		// 多选模式按钮
+		const selectBtn = header.createEl('button', { cls: 'refresh-button' });
+		setIcon(selectBtn, 'check-square');
+		selectBtn.addEventListener('click', () => {
+			this.isSelectionMode = !this.isSelectionMode;
+			if (!this.isSelectionMode) {
+				this.selectedFiles.clear();
+			}
+			this.refreshImages();
+		});
+		selectBtn.title = '多选模式';
 
 		// 排序选项
 		const sortSelect = header.createEl('select', { cls: 'sort-select' });
@@ -155,6 +376,23 @@ export class ImageLibraryView extends View {
 	renderImageItem(container: HTMLElement, image: ImageItem) {
 		const item = container.createDiv({ cls: 'image-item' });
 
+		// 如果在选择模式下，添加复选框
+		if (this.isSelectionMode) {
+			const checkbox = item.createEl('input', {
+				type: 'checkbox',
+				cls: 'item-checkbox'
+			});
+			checkbox.checked = this.selectedFiles.has(image.file.path);
+			checkbox.addEventListener('change', (e) => {
+				const target = e.target as HTMLInputElement;
+				if (target.checked) {
+					this.selectedFiles.add(image.file.path);
+				} else {
+					this.selectedFiles.delete(image.file.path);
+				}
+			});
+		}
+
 		// 创建图片容器
 		const imgContainer = item.createDiv({ cls: 'image-container' });
 
@@ -171,7 +409,18 @@ export class ImageLibraryView extends View {
 		});
 
 		img.addEventListener('click', () => {
-			this.plugin.openImageInNotes(file);
+			if (this.isSelectionMode) {
+				// 在选择模式下，点击切换选择状态
+				if (this.selectedFiles.has(image.file.path)) {
+					this.selectedFiles.delete(image.file.path);
+				} else {
+					this.selectedFiles.add(image.file.path);
+				}
+				this.refreshImages();
+			} else {
+				// 在普通模式下，打开预览
+				this.plugin.openMediaPreview(image.file);
+			}
 		});
 
 		// 右键菜单

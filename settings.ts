@@ -13,6 +13,14 @@ export interface ImageManagerSettings {
 	trashFolder: string;
 	autoCleanupTrash: boolean;
 	trashCleanupDays: number;
+	// 新增设置
+	enableImages: boolean;
+	enableVideos: boolean;
+	enableAudio: boolean;
+	enablePDF: boolean;
+	pageSize: number;
+	enablePreviewModal: boolean;
+	enableKeyboardNav: boolean;
 }
 
 export const DEFAULT_SETTINGS: ImageManagerSettings = {
@@ -26,7 +34,15 @@ export const DEFAULT_SETTINGS: ImageManagerSettings = {
 	useTrashFolder: true,
 	trashFolder: '.obsidian-media-manager-trash',
 	autoCleanupTrash: false,
-	trashCleanupDays: 30
+	trashCleanupDays: 30,
+	// 新增默认值
+	enableImages: true,
+	enableVideos: true,
+	enableAudio: true,
+	enablePDF: true,
+	pageSize: 50,
+	enablePreviewModal: true,
+	enableKeyboardNav: true
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -190,7 +206,92 @@ export class SettingsTab extends PluginSettingTab {
 		// 分隔线
 		containerEl.createEl('hr', { cls: 'settings-divider' });
 
+		// 媒体类型过滤
+		containerEl.createEl('h3', { text: '媒体类型' });
+
+		new Setting(containerEl)
+			.setName('启用图片支持')
+			.setDesc('在媒体库中显示图片文件 (png, jpg, gif, webp, svg, bmp)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableImages)
+				.onChange(async (value) => {
+					this.plugin.settings.enableImages = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('启用视频支持')
+			.setDesc('在媒体库中显示视频文件 (mp4, mov, avi, mkv, webm)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableVideos)
+				.onChange(async (value) => {
+					this.plugin.settings.enableVideos = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('启用音频支持')
+			.setDesc('在媒体库中显示音频文件 (mp3, wav, ogg, m4a, flac)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableAudio)
+				.onChange(async (value) => {
+					this.plugin.settings.enableAudio = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('启用 PDF 支持')
+			.setDesc('在媒体库中显示 PDF 文件')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enablePDF)
+				.onChange(async (value) => {
+					this.plugin.settings.enablePDF = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// 分隔线
+		containerEl.createEl('hr', { cls: 'settings-divider' });
+
+		// 视图设置
+		containerEl.createEl('h3', { text: '视图设置' });
+
+		new Setting(containerEl)
+			.setName('分页大小')
+			.setDesc('媒体库中每页显示的文件数量')
+			.addText(text => text
+				.setPlaceholder('50')
+				.setValue(String(this.plugin.settings.pageSize))
+				.onChange(async (value) => {
+					const size = parseInt(value, 10);
+					if (!isNaN(size) && size > 0) {
+						this.plugin.settings.pageSize = size;
+						await this.plugin.saveSettings();
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('启用预览 Modal')
+			.setDesc('点击媒体文件时打开预览窗口')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enablePreviewModal)
+				.onChange(async (value) => {
+					this.plugin.settings.enablePreviewModal = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// 分隔线
+		containerEl.createEl('hr', { cls: 'settings-divider' });
+
 		// 帮助信息
+		containerEl.createEl('h3', { text: '快捷键' });
+		containerEl.createEl('p', {
+			text: '插件支持的快捷键：',
+			cls: 'settings-description'
+		});
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: 'Ctrl+Shift+M - 打开媒体库' });
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: 'Ctrl+Shift+U - 查找未引用媒体' });
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: 'Ctrl+Shift+T - 打开隔离文件管理' });
+
 		containerEl.createEl('h3', { text: '快捷命令' });
 		containerEl.createEl('p', {
 			text: '在命令面板中使用以下命令：',
@@ -198,6 +299,7 @@ export class SettingsTab extends PluginSettingTab {
 		});
 		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '媒体库 - 打开媒体库视图' });
 		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '查找未引用媒体 - 查找未被任何笔记引用的媒体文件' });
+		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '隔离文件管理 - 管理已删除的文件' });
 		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '图片居左对齐 - 将选中图片居左对齐' });
 		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '图片居中对齐 - 将选中图片居中对齐' });
 		containerEl.createEl('ul', { cls: 'settings-list' }).createEl('li', { text: '图片居右对齐 - 将选中图片居右对齐' });

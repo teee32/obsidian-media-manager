@@ -1,0 +1,18 @@
+import { App, PluginSettingTab } from 'obsidian';
+import ImageManagerPlugin from './main';
+export interface ImageManagerSettings {
+    imageFolder: string;
+    thumbnailSize: 'small' | 'medium' | 'large';
+    showImageInfo: boolean;
+    sortBy: 'name' | 'date' | 'size';
+    sortOrder: 'asc' | 'desc';
+    autoRefresh: boolean;
+    defaultAlignment: 'left' | 'center' | 'right';
+}
+export declare const DEFAULT_SETTINGS: ImageManagerSettings;
+export declare class SettingsTab extends PluginSettingTab {
+    plugin: ImageManagerPlugin;
+    constructor(app: App, plugin: ImageManagerPlugin);
+    display(): void;
+}
+//# sourceMappingURL=settings.d.ts.map
