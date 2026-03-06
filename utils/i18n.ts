@@ -49,6 +49,107 @@ export interface Translations {
 	openLibrary: string;
 	findUnreferenced: string;
 	openTrash: string;
+
+	// 扫描进度
+	scanningReferences: string;
+	scanComplete: string;
+	filesScanned: string;
+
+	// 批量操作
+	batchDeleteComplete: string;
+	batchDeleteProgress: string;
+	batchRestoreComplete: string;
+
+	// 设置页面
+	pluginSettings: string;
+	mediaFolder: string;
+	mediaFolderDesc: string;
+	thumbnailSize: string;
+	thumbnailSizeDesc: string;
+	thumbnailSmall: string;
+	thumbnailMedium: string;
+	thumbnailLarge: string;
+	defaultSortBy: string;
+	sortByDesc: string;
+	sortByName: string;
+	sortByDate: string;
+	sortBySize: string;
+	sortOrder: string;
+	sortOrderDesc: string;
+	sortAsc: string;
+	sortDesc: string;
+	showImageInfo: string;
+	showImageInfoDesc: string;
+	autoRefresh: string;
+	autoRefreshDesc: string;
+	defaultAlignment: string;
+	alignmentDesc: string;
+	alignLeft: string;
+	alignCenter: string;
+	alignRight: string;
+	safeDeleteSettings: string;
+	useTrashFolder: string;
+	useTrashFolderDesc: string;
+	trashFolderPath: string;
+	trashFolderPathDesc: string;
+	autoCleanupTrash: string;
+	autoCleanupTrashDesc: string;
+	cleanupDays: string;
+	cleanupDaysDesc: string;
+	mediaTypes: string;
+	enableImageSupport: string;
+	enableImageSupportDesc: string;
+	enableVideoSupport: string;
+	enableVideoSupportDesc: string;
+	enableAudioSupport: string;
+	enableAudioSupportDesc: string;
+	enablePDFSupport: string;
+	enablePDFSupportDesc: string;
+	viewSettings: string;
+	interfaceLanguage: string;
+	languageDesc: string;
+	languageSystem: string;
+	pageSize: string;
+	pageSizeDesc: string;
+	enablePreviewModal: string;
+	enablePreviewModalDesc: string;
+	enableKeyboardNav: string;
+	enableKeyboardNavDesc: string;
+	keyboardShortcuts: string;
+	shortcutsDesc: string;
+	shortcutOpenLibrary: string;
+	shortcutFindUnreferenced: string;
+	shortcutOpenTrash: string;
+	commands: string;
+	commandsDesc: string;
+	cmdOpenLibrary: string;
+	cmdFindUnreferenced: string;
+	cmdTrashManagement: string;
+	cmdAlignLeft: string;
+	cmdAlignCenter: string;
+	cmdAlignRight: string;
+
+	// Trash Management View
+	loadingTrashFiles: string;
+	trashFolderEmpty: string;
+	filesInTrash: string;
+	totalSize: string;
+	trashManagementDesc: string;
+	refresh: string;
+	clearTrash: string;
+	clearTrashTooltip: string;
+	restoreTooltip: string;
+	permanentDelete: string;
+	permanentDeleteTooltip: string;
+	deletedTime: string;
+	confirmDeleteFile: string;
+	confirmClearTrash: string;
+	fileDeleted: string;
+	restoreSuccess: string;
+	restoreFailed: string;
+	deleteFailed: string;
+	fileNameCopied: string;
+	originalPathCopied: string;
 }
 
 const zh: Translations = {
@@ -94,7 +195,108 @@ const zh: Translations = {
 	shortcuts: '快捷键',
 	openLibrary: '打开媒体库',
 	findUnreferenced: '查找未引用媒体',
-	openTrash: '打开隔离文件管理'
+	openTrash: '打开隔离文件管理',
+
+	// 扫描进度
+	scanningReferences: '正在扫描引用',
+	scanComplete: '扫描完成',
+	filesScanned: '个文件已扫描',
+
+	// 批量操作
+	batchDeleteComplete: '已删除 {count} 个文件',
+	batchDeleteProgress: '正在删除 {current}/{total}',
+	batchRestoreComplete: '已恢复 {count} 个文件',
+
+	// 设置页面
+	pluginSettings: '媒体工具箱插件设置',
+	mediaFolder: '媒体文件夹',
+	mediaFolderDesc: '指定要扫描的媒体文件夹路径（留空则扫描整个库）',
+	thumbnailSize: '缩略图大小',
+	thumbnailSizeDesc: '选择媒体库视图中缩略图的显示大小',
+	thumbnailSmall: '小 (100px)',
+	thumbnailMedium: '中 (150px)',
+	thumbnailLarge: '大 (200px)',
+	defaultSortBy: '默认排序方式',
+	sortByDesc: '选择图片的默认排序方式',
+	sortByName: '按名称',
+	sortByDate: '按修改日期',
+	sortBySize: '按文件大小',
+	sortOrder: '排序顺序',
+	sortOrderDesc: '选择升序或降序',
+	sortAsc: '升序',
+	sortDesc: '降序',
+	showImageInfo: '显示图片信息',
+	showImageInfoDesc: '在图片缩略图下方显示文件名和大小',
+	autoRefresh: '自动刷新',
+	autoRefreshDesc: '当库中的图片发生变化时自动刷新视图',
+	defaultAlignment: '默认图片对齐方式',
+	alignmentDesc: '插入图片时的默认对齐方式',
+	alignLeft: '居左',
+	alignCenter: '居中',
+	alignRight: '居右',
+	safeDeleteSettings: '安全删除设置',
+	useTrashFolder: '使用隔离文件夹',
+	useTrashFolderDesc: '删除文件时先移入隔离文件夹，而不是直接删除',
+	trashFolderPath: '隔离文件夹',
+	trashFolderPathDesc: '隔离文件夹的路径（相对路径）',
+	autoCleanupTrash: '自动清理隔离文件夹',
+	autoCleanupTrashDesc: '自动清理隔离文件夹中的旧文件',
+	cleanupDays: '清理天数',
+	cleanupDaysDesc: '隔离文件夹中的文件超过此天数后将自动删除',
+	mediaTypes: '媒体类型',
+	enableImageSupport: '启用图片支持',
+	enableImageSupportDesc: '在媒体库中显示图片文件 (png, jpg, gif, webp, svg, bmp)',
+	enableVideoSupport: '启用视频支持',
+	enableVideoSupportDesc: '在媒体库中显示视频文件 (mp4, mov, avi, mkv, webm)',
+	enableAudioSupport: '启用音频支持',
+	enableAudioSupportDesc: '在媒体库中显示音频文件 (mp3, wav, ogg, m4a, flac)',
+	enablePDFSupport: '启用 PDF 支持',
+	enablePDFSupportDesc: '在媒体库中显示 PDF 文件',
+	viewSettings: '视图设置',
+	interfaceLanguage: '界面语言',
+	languageDesc: '选择插件界面显示的语言',
+	languageSystem: '跟随系统',
+	pageSize: '分页大小',
+	pageSizeDesc: '媒体库中每页显示的文件数量',
+	enablePreviewModal: '启用预览 Modal',
+	enablePreviewModalDesc: '点击媒体文件时打开预览窗口',
+	enableKeyboardNav: '启用键盘导航',
+	enableKeyboardNavDesc: '在预览窗口中使用方向键切换图片',
+	keyboardShortcuts: '快捷键',
+	shortcutsDesc: '插件支持的快捷键：',
+	shortcutOpenLibrary: 'Ctrl+Shift+M - 打开媒体库',
+	shortcutFindUnreferenced: 'Ctrl+Shift+U - 查找未引用媒体',
+	shortcutOpenTrash: 'Ctrl+Shift+T - 打开隔离文件管理',
+	commands: '快捷命令',
+	commandsDesc: '在命令面板中使用以下命令：',
+	cmdOpenLibrary: '媒体库 - 打开媒体库视图',
+	cmdFindUnreferenced: '查找未引用媒体 - 查找未被任何笔记引用的媒体文件',
+	cmdTrashManagement: '隔离文件管理 - 管理已删除的文件',
+	cmdAlignLeft: '图片居左对齐 - 将选中图片居左对齐',
+	cmdAlignCenter: '图片居中对齐 - 将选中图片居中对齐',
+	cmdAlignRight: '图片居右对齐 - 将选中图片居右对齐',
+
+	// Trash Management View
+	loadingTrashFiles: '正在加载隔离文件...',
+	trashFolderEmpty: '隔离文件夹为空',
+	filesInTrash: '隔离文件夹中有 {count} 个文件',
+	totalSize: '总计 {size}',
+	trashManagementDesc: '已删除的文件会临时存放在这里，您可以恢复或彻底删除它们',
+	refresh: '刷新',
+	clearTrash: '清空隔离文件夹',
+	clearTrashTooltip: '清空隔离文件夹',
+	restoreTooltip: '恢复文件',
+	permanentDelete: '彻底删除',
+	permanentDeleteTooltip: '彻底删除',
+	deletedTime: '删除时间',
+	confirmDeleteFile: '确定要彻底删除 "{name}" 吗？此操作不可撤销。',
+	confirmClearTrash: '确定要清空隔离文件夹吗？{count} 个文件将被彻底删除，此操作不可撤销。',
+	fileDeleted: '已彻底删除: {name}',
+	restoreSuccess: '已恢复: {name}',
+	restoreFailed: '恢复失败: {message}',
+	deleteFailed: '删除失败',
+	fileNameCopied: '文件名已复制',
+	originalPathCopied: '原始路径已复制'
 };
 
 const en: Translations = {
@@ -140,7 +342,108 @@ const en: Translations = {
 	shortcuts: 'Shortcuts',
 	openLibrary: 'Open Media Library',
 	findUnreferenced: 'Find Unreferenced Media',
-	openTrash: 'Open Trash Management'
+	openTrash: 'Open Trash Management',
+
+	// Scanning progress
+	scanningReferences: 'Scanning references',
+	scanComplete: 'Scan complete',
+	filesScanned: 'files scanned',
+
+	// Batch operations
+	batchDeleteComplete: '{count} files deleted',
+	batchDeleteProgress: 'Deleting {current}/{total}',
+	batchRestoreComplete: '{count} files restored',
+
+	// Settings page
+	pluginSettings: 'Media Toolkit Plugin Settings',
+	mediaFolder: 'Media Folder',
+	mediaFolderDesc: 'Specify the media folder path to scan (leave empty to scan entire vault)',
+	thumbnailSize: 'Thumbnail Size',
+	thumbnailSizeDesc: 'Choose thumbnail size in media library view',
+	thumbnailSmall: 'Small (100px)',
+	thumbnailMedium: 'Medium (150px)',
+	thumbnailLarge: 'Large (200px)',
+	defaultSortBy: 'Default Sort By',
+	sortByDesc: 'Choose default sort method for images',
+	sortOrder: 'Sort Order',
+	sortOrderDesc: 'Choose ascending or descending order',
+	sortByName: 'By Name',
+	sortByDate: 'By Date',
+	sortBySize: 'By Size',
+	sortAsc: 'Ascending',
+	sortDesc: 'Descending',
+	showImageInfo: 'Show Image Info',
+	showImageInfoDesc: 'Display filename and size below image thumbnails',
+	autoRefresh: 'Auto Refresh',
+	autoRefreshDesc: 'Automatically refresh view when images change in vault',
+	defaultAlignment: 'Default Image Alignment',
+	alignmentDesc: 'Default alignment when inserting images',
+	alignLeft: 'Left',
+	alignCenter: 'Center',
+	alignRight: 'Right',
+	safeDeleteSettings: 'Safe Delete Settings',
+	useTrashFolder: 'Use Trash Folder',
+	useTrashFolderDesc: 'Move files to trash folder instead of deleting directly',
+	trashFolderPath: 'Trash Folder',
+	trashFolderPathDesc: 'Path to trash folder (relative path)',
+	autoCleanupTrash: 'Auto Cleanup Trash',
+	autoCleanupTrashDesc: 'Automatically clean up old files in trash folder',
+	cleanupDays: 'Cleanup Days',
+	cleanupDaysDesc: 'Files older than this many days will be automatically deleted',
+	mediaTypes: 'Media Types',
+	enableImageSupport: 'Enable Image Support',
+	enableImageSupportDesc: 'Show image files in media library (png, jpg, gif, webp, svg, bmp)',
+	enableVideoSupport: 'Enable Video Support',
+	enableVideoSupportDesc: 'Show video files in media library (mp4, mov, avi, mkv, webm)',
+	enableAudioSupport: 'Enable Audio Support',
+	enableAudioSupportDesc: 'Show audio files in media library (mp3, wav, ogg, m4a, flac)',
+	enablePDFSupport: 'Enable PDF Support',
+	enablePDFSupportDesc: 'Show PDF files in media library',
+	viewSettings: 'View Settings',
+	interfaceLanguage: 'Interface Language',
+	languageDesc: 'Choose language for plugin interface',
+	languageSystem: 'Follow System',
+	pageSize: 'Page Size',
+	pageSizeDesc: 'Number of files per page in media library',
+	enablePreviewModal: 'Enable Preview Modal',
+	enablePreviewModalDesc: 'Open preview window when clicking media files',
+	enableKeyboardNav: 'Enable Keyboard Navigation',
+	enableKeyboardNavDesc: 'Use arrow keys to navigate in preview window',
+	keyboardShortcuts: 'Keyboard Shortcuts',
+	shortcutsDesc: 'Plugin keyboard shortcuts:',
+	shortcutOpenLibrary: 'Ctrl+Shift+M - Open Media Library',
+	shortcutFindUnreferenced: 'Ctrl+Shift+U - Find Unreferenced Media',
+	shortcutOpenTrash: 'Ctrl+Shift+T - Open Trash Management',
+	commands: 'Commands',
+	commandsDesc: 'Use these commands in command palette:',
+	cmdOpenLibrary: 'Media Library - Open media library view',
+	cmdFindUnreferenced: 'Find Unreferenced Media - Find media files not referenced by any notes',
+	cmdTrashManagement: 'Trash Management - Manage deleted files',
+	cmdAlignLeft: 'Align Image Left - Align selected image to left',
+	cmdAlignCenter: 'Align Image Center - Center align selected image',
+	cmdAlignRight: 'Align Image Right - Align selected image to right',
+
+	// Trash Management View
+	loadingTrashFiles: 'Loading trash files...',
+	trashFolderEmpty: 'Trash folder is empty',
+	filesInTrash: '{count} files in trash folder',
+	totalSize: 'Total: {size}',
+	trashManagementDesc: 'Deleted files are temporarily stored here. You can restore or permanently delete them.',
+	refresh: 'Refresh',
+	clearTrash: 'Empty Trash',
+	clearTrashTooltip: 'Empty trash folder',
+	restoreTooltip: 'Restore file',
+	permanentDelete: 'Delete',
+	permanentDeleteTooltip: 'Permanently delete',
+	deletedTime: 'Deleted at',
+	confirmDeleteFile: 'Are you sure you want to permanently delete "{name}"? This cannot be undone.',
+	confirmClearTrash: 'Are you sure you want to empty the trash folder? {count} files will be permanently deleted. This cannot be undone.',
+	fileDeleted: 'Permanently deleted: {name}',
+	restoreSuccess: 'Restored: {name}',
+	restoreFailed: 'Restore failed: {message}',
+	deleteFailed: 'Delete failed',
+	fileNameCopied: 'File name copied',
+	originalPathCopied: 'Original path copied'
 };
 
 const translations: Record<Language, Translations> = { zh, en };

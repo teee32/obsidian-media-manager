@@ -28,7 +28,7 @@ export class TrashManagementView extends View {
 	}
 
 	getDisplayText() {
-		return '隔离文件管理';
+		return this.plugin.t('trashManagement');
 	}
 
 	async onOpen() {
@@ -52,7 +52,7 @@ export class TrashManagementView extends View {
 		// 显示加载状态
 		const loading = this.contentEl.createDiv({ cls: 'loading-state' });
 		loading.createEl('div', { cls: 'spinner' });
-		loading.createDiv({ text: '正在加载隔离文件...' });
+		loading.createDiv({ text: this.plugin.t('loadingTrashFiles') });
 
 		try {
 			const trashPath = this.plugin.settings.trashFolder;
@@ -68,12 +68,13 @@ export class TrashManagementView extends View {
 			this.trashItems = [];
 			for (const file of trashFolder.children) {
 				if (file instanceof TFile) {
-					// 从文件名中提取原始路径（格式：timestamp_originalPath）
+					// 从文件名中提取原始路径（格式：timestamp__originalPath）
+					// 使用双下划线 __ 作为分隔符，避免文件名中包含下划线时解析错误
 					let originalPath: string | undefined;
-					const nameParts = file.name.split('_');
-					if (nameParts.length > 1) {
+					const separatorIndex = file.name.indexOf('__');
+					if (separatorIndex !== -1) {
 						// 去掉时间戳部分，剩余的就是原始路径
-						originalPath = nameParts.slice(1).join('_');
+						originalPath = file.name.substring(separatorIndex + 2);
 					}
 
 					this.trashItems.push({
@@ -114,7 +115,7 @@ export class TrashManagementView extends View {
 		if (this.trashItems.length === 0) {
 			this.contentEl.createDiv({
 				cls: 'empty-state',
-				text: '隔离文件夹为空'
+				text: this.plugin.t('trashFolderEmpty')
 			});
 			return;
 		}
@@ -122,13 +123,13 @@ export class TrashManagementView extends View {
 		// 创建统计信息
 		const stats = this.contentEl.createDiv({ cls: 'stats-bar' });
 		stats.createSpan({
-			text: `隔离文件夹中有 ${this.trashItems.length} 个文件`,
+			text: this.plugin.t('filesInTrash').replace('{count}', String(this.trashItems.length)),
 			cls: 'stats-count'
 		});
 
 		const totalSize = this.trashItems.reduce((sum, item) => sum + item.size, 0);
 		stats.createSpan({
-			text: `总计 ${this.formatFileSize(totalSize)}`,
+			text: this.plugin.t('totalSize').replace('{size}', this.formatFileSize(totalSize)),
 			cls: 'stats-size'
 		});
 
@@ -146,15 +147,16 @@ export class TrashManagementView extends View {
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'trash-header' });
 
-		header.createEl('h2', { text: '隔离文件管理' });
+		header.createEl('h2', { text: this.plugin.t('trashManagement') });
 
 		const desc = header.createDiv({ cls: 'header-description' });
-		desc.createSpan({ text: '已删除的文件会临时存放在这里，您可以恢复或彻底删除它们' });
+		desc.createSpan({ text: this.plugin.t('trashManagementDesc') });
 
 		// 刷新按钮
 		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
 		setIcon(refreshBtn, 'refresh-cw');
 		refreshBtn.addEventListener('click', () => this.loadTrashItems());
+		refreshBtn.title = this.plugin.t('refresh');
 
 		// 操作按钮
 		const actions = header.createDiv({ cls: 'header-actions' });
@@ -163,7 +165,7 @@ export class TrashManagementView extends View {
 		const clearAllBtn = actions.createEl('button', { cls: 'action-button danger' });
 		setIcon(clearAllBtn, 'trash-2');
 		clearAllBtn.addEventListener('click', () => this.confirmClearAll());
-		clearAllBtn.title = '清空隔离文件夹';
+		clearAllBtn.title = this.plugin.t('clearTrashTooltip');
 	}
 
 	/**
@@ -181,10 +183,10 @@ export class TrashManagementView extends View {
 		const info = itemEl.createDiv({ cls: 'item-info' });
 		info.createDiv({ cls: 'item-name', text: item.name });
 		if (item.originalPath) {
-			info.createDiv({ cls: 'item-original-path', text: `原始位置: ${item.originalPath}` });
+			info.createDiv({ cls: 'item-original-path', text: `${this.plugin.t('originalPath')}: ${item.originalPath}` });
 		}
 		info.createDiv({ cls: 'item-size', text: this.formatFileSize(item.size) });
-		info.createDiv({ cls: 'item-date', text: `删除时间: ${new Date(item.modified).toLocaleString()}` });
+		info.createDiv({ cls: 'item-date', text: `${this.plugin.t('deletedTime')}: ${new Date(item.modified).toLocaleString()}` });
 
 		// 操作按钮
 		const actions = itemEl.createDiv({ cls: 'item-actions' });
@@ -193,13 +195,13 @@ export class TrashManagementView extends View {
 		const restoreBtn = actions.createEl('button', { cls: 'item-button success' });
 		setIcon(restoreBtn, 'rotate-ccw');
 		restoreBtn.addEventListener('click', () => this.restoreFile(item));
-		restoreBtn.title = '恢复文件';
+		restoreBtn.title = this.plugin.t('restoreTooltip');
 
 		// 彻底删除按钮
 		const deleteBtn = actions.createEl('button', { cls: 'item-button danger' });
 		setIcon(deleteBtn, 'trash-2');
 		deleteBtn.addEventListener('click', () => this.confirmDelete(item));
-		deleteBtn.title = '彻底删除';
+		deleteBtn.title = this.plugin.t('permanentDeleteTooltip');
 
 		// 右键菜单
 		itemEl.addEventListener('contextmenu', (e) => {
@@ -215,13 +217,13 @@ export class TrashManagementView extends View {
 		const menu = new Menu();
 
 		menu.addItem((menuItem: MenuItem) => {
-			menuItem.setTitle('恢复文件')
+			menuItem.setTitle(this.plugin.t('restore'))
 				.setIcon('rotate-ccw')
 				.onClick(() => this.restoreFile(trashItem));
 		});
 
 		menu.addItem((menuItem: MenuItem) => {
-			menuItem.setTitle('彻底删除')
+			menuItem.setTitle(this.plugin.t('permanentDelete'))
 				.setIcon('trash-2')
 				.onClick(() => this.confirmDelete(trashItem));
 		});
@@ -233,7 +235,7 @@ export class TrashManagementView extends View {
 				.setIcon('copy')
 				.onClick(() => {
 					navigator.clipboard.writeText(trashItem.name);
-					new Notice('文件名已复制');
+					new Notice(this.plugin.t('fileNameCopied'));
 				});
 		});
 
@@ -243,7 +245,7 @@ export class TrashManagementView extends View {
 				.onClick(() => {
 					if (trashItem.originalPath) {
 						navigator.clipboard.writeText(trashItem.originalPath);
-						new Notice('原始路径已复制');
+						new Notice(this.plugin.t('originalPathCopied'));
 					}
 				});
 		});
@@ -258,14 +260,14 @@ export class TrashManagementView extends View {
 		try {
 			const targetPath = item.originalPath || item.name;
 			await this.plugin.app.vault.rename(item.file, targetPath);
-			new Notice(`已恢复: ${item.name}`);
+			new Notice(this.plugin.t('restoreSuccess').replace('{name}', item.name));
 
 			// 从列表中移除
 			this.trashItems = this.trashItems.filter(i => i.file.path !== item.file.path);
 			await this.renderView();
 		} catch (error) {
 			console.error('恢复文件失败:', error);
-			new Notice('恢复失败: ' + (error as Error).message);
+			new Notice(this.plugin.t('restoreFailed').replace('{message}', (error as Error).message));
 		}
 	}
 
@@ -273,19 +275,19 @@ export class TrashManagementView extends View {
 	 * 确认删除单个文件
 	 */
 	async confirmDelete(item: TrashItem) {
-		const confirmed = confirm(`确定要彻底删除 "${item.name}" 吗？此操作不可撤销。`);
+		const confirmed = confirm(this.plugin.t('confirmDeleteFile').replace('{name}', item.name));
 
 		if (confirmed) {
 			try {
 				await this.plugin.app.vault.delete(item.file);
-				new Notice(`已彻底删除: ${item.name}`);
+				new Notice(this.plugin.t('fileDeleted').replace('{name}', item.name));
 
 				// 从列表中移除
 				this.trashItems = this.trashItems.filter(i => i.file.path !== item.file.path);
 				await this.renderView();
 			} catch (error) {
 				console.error('删除文件失败:', error);
-				new Notice('删除失败');
+				new Notice(this.plugin.t('deleteFailed'));
 			}
 		}
 	}
@@ -295,12 +297,12 @@ export class TrashManagementView extends View {
 	 */
 	async confirmClearAll() {
 		if (this.trashItems.length === 0) {
-			new Notice('隔离文件夹为空');
+			new Notice(this.plugin.t('trashEmpty'));
 			return;
 		}
 
 		const confirmed = confirm(
-			`确定要清空隔离文件夹吗？${this.trashItems.length} 个文件将被彻底删除，此操作不可撤销。`
+			this.plugin.t('confirmClearTrash').replace('{count}', String(this.trashItems.length))
 		);
 
 		if (confirmed) {
@@ -317,10 +319,10 @@ export class TrashManagementView extends View {
 			}
 
 			if (deleted.length > 0) {
-				new Notice(`已彻底删除 ${deleted.length} 个文件`);
+				new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(deleted.length)));
 			}
 			if (errors.length > 0) {
-				new Notice(`删除 ${errors.length} 个文件时出错`);
+				new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(errors.length)) + ' (' + this.plugin.t('error') + ')');
 			}
 
 			await this.loadTrashItems();

@@ -288,8 +288,20 @@ export class ImageLibraryView extends View {
 				this.selectedFiles.has(img.file.path)
 			);
 
-			for (const img of filesToDelete) {
-				await this.plugin.safeDeleteFile(img.file);
+			// 使用 Promise.all 并发处理删除
+			const results = await Promise.all(
+				filesToDelete.map(img => this.plugin.safeDeleteFile(img.file))
+			);
+
+			// 统计成功和失败的数量
+			const successCount = results.filter(r => r).length;
+			const failCount = results.filter(r => !r).length;
+
+			if (successCount > 0) {
+				new Notice(`已删除 ${successCount} 个文件`);
+			}
+			if (failCount > 0) {
+				new Notice(`删除 ${failCount} 个文件失败`, 3000);
 			}
 
 			this.selectedFiles.clear();

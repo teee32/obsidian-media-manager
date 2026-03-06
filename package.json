@@ -1,6 +1,6 @@
 {
   "name": "obsidian-media-toolkit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Obsidian media management plugin with alignment, library view, and unused media detection",
   "main": "main.js",
   "scripts": {
