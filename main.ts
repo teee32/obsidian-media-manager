@@ -6,9 +6,31 @@ import { MediaPreviewModal } from './view/MediaPreviewModal';
 import { ImageManagerSettings, DEFAULT_SETTINGS, SettingsTab } from './settings';
 import { ImageAlignment, AlignmentType } from './utils/imageAlignment';
 import { AlignmentPostProcessor } from './utils/postProcessor';
+import { t as translate, getSystemLanguage, Language } from './utils/i18n';
 
 export default class ImageManagerPlugin extends Plugin {
 	settings: ImageManagerSettings = DEFAULT_SETTINGS;
+	// 缓存引用的图片以提高大型 Vault 的性能
+	private referencedImagesCache: Set<string> | null = null;
+	private cacheTimestamp: number = 0;
+	private static readonly CACHE_DURATION = 5 * 60 * 1000; // 缓存5分钟
+
+	/**
+	 * 获取当前语言设置
+	 */
+	getCurrentLanguage(): Language {
+		if (this.settings.language === 'system') {
+			return getSystemLanguage();
+		}
+		return this.settings.language as Language;
+	}
+
+	/**
+	 * 翻译函数
+	 */
+	t(key: string, params?: Record<string, string | number>): string {
+		return translate(this.getCurrentLanguage(), key as any, params);
+	}
 
 	async onload() {
 		await this.loadSettings();
@@ -153,7 +175,43 @@ export default class ImageManagerPlugin extends Plugin {
 	}
 
 	// 加载样式文件
+	// 注意：优先使用 styles.css 中的样式，addStyle 作为后备方案
 	addStyle() {
+		// 尝试从外部样式文件加载样式
+		this.loadExternalStyles();
+
+		// 同时添加内联样式作为后备，确保样式始终可用
+		this.addInlineStyle();
+	}
+
+	// 从外部样式文件加载
+	async loadExternalStyles() {
+		// 检查是否已存在样式元素，避免重复添加
+		if (document.getElementById('obsidian-media-toolkit-styles')) {
+			return;
+		}
+
+		try {
+			const stylesFile = this.app.vault.getAbstractFileByPath('styles.css');
+			if (stylesFile && stylesFile instanceof TFile) {
+				const content = await this.app.vault.read(stylesFile);
+				const styleEl = document.createElement('style');
+				styleEl.id = 'obsidian-media-toolkit-styles';
+				styleEl.textContent = content;
+				document.head.appendChild(styleEl);
+			}
+		} catch (error) {
+			console.log('加载外部样式文件失败，使用内联样式', error);
+		}
+	}
+
+	// 内联样式（后备方案）
+	addInlineStyle() {
+		// 检查是否已存在样式元素，避免重复添加
+		if (document.getElementById('image-manager-styles')) {
+			return;
+		}
+
 		const styleEl = document.createElement('style');
 		styleEl.id = 'image-manager-styles';
 		styleEl.textContent = `\/* Obsidian Image Manager Plugin Styles *\/
@@ -925,53 +983,90 @@ export default class ImageManagerPlugin extends Plugin {
 
 	// 获取所有Markdown文件中引用的图片
 	async getReferencedImages(): Promise<Set<string>> {
+		const now = Date.now();
+
+		// 检查缓存是否有效
+		if (this.referencedImagesCache && (now - this.cacheTimestamp) < ImageManagerPlugin.CACHE_DURATION) {
+			return this.referencedImagesCache;
+		}
+
 		const referenced = new Set<string>();
 		const { vault } = this.app;
 
 		// 使用正则扫描所有 Markdown 文件
 		const markdownFiles = vault.getFiles().filter(f => f.extension === 'md');
-		for (const file of markdownFiles) {
-			const content = await vault.read(file);
+		const totalFiles = markdownFiles.length;
 
-			// 匹配各种链接格式
-			// [[filename.png]] 或 [[path/to/filename.png]]
-			const wikiLinkPattern = /\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
-			// [[filename.png|alias]] 带别名的
-			const wikiLinkAliasPattern = /\[\[([^|\]]+)\|([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
-			// ![alt](path/to/image.png)
-			const markdownLinkPattern = /!\[.*?\]\(([^)]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\)/gi;
-
-			let match;
-
-			// 匹配基本 Wiki 链接
-			while ((match = wikiLinkPattern.exec(content)) !== null) {
-				const path = match[1].toLowerCase();
-				referenced.add(path);
-				// 添加文件名
-				const fileName = path.split('/').pop() || path;
-				referenced.add(fileName);
-			}
-
-			// 匹配带别名的 Wiki 链接
-			while ((match = wikiLinkAliasPattern.exec(content)) !== null) {
-				const path = match[1].toLowerCase();
-				referenced.add(path);
-				const fileName = path.split('/').pop() || path;
-				referenced.add(fileName);
-			}
-
-			// 匹配 Markdown 图片链接
-			while ((match = markdownLinkPattern.exec(content)) !== null) {
-				const url = match[1];
-				// 只处理相对路径或仓库内文件
-				if (!url.startsWith('http')) {
-					const filename = url.split('/').pop()?.toLowerCase() || '';
-					referenced.add(filename);
-					// 也添加完整路径
-					referenced.add(url.toLowerCase());
-				}
-			}
+		// 对于大型 Vault，显示开始扫描通知
+		// 注意：Obsidian 的 Notice 不支持动态更新，每次 setMessage() 会创建新的 Notice
+		// 因此我们只在开始时显示一个通知，扫描完成后用新的通知替换
+		let scanNotice: Notice | null = null;
+		if (totalFiles > 100) {
+			scanNotice = new Notice(this.t('scanningReferences') + ` (0/${totalFiles})`, 0);
 		}
+
+		// 分批处理以避免阻塞 UI
+		const BATCH_SIZE = 20;
+		for (let i = 0; i < markdownFiles.length; i += BATCH_SIZE) {
+			const batch = markdownFiles.slice(i, i + BATCH_SIZE);
+
+			await Promise.all(batch.map(async (file) => {
+				const content = await vault.read(file);
+
+				// 匹配各种链接格式
+				// [[filename.png]] 或 [[path/to/filename.png]]
+				const wikiLinkPattern = /\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
+				// [[filename.png|alias]] 带别名的
+				const wikiLinkAliasPattern = /\[\[([^|\]]+)\|([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\]\]/gi;
+				// ![alt](path/to/image.png)
+				const markdownLinkPattern = /!\[.*?\]\(([^)]+\.(?:png|jpg|jpeg|gif|webp|svg|bmp|mov|mp4|mp3|wav|pdf))\)/gi;
+
+				let match;
+
+				// 匹配基本 Wiki 链接
+				while ((match = wikiLinkPattern.exec(content)) !== null) {
+					const path = match[1].toLowerCase();
+					referenced.add(path);
+					// 添加文件名
+					const fileName = path.split('/').pop() || path;
+					referenced.add(fileName);
+				}
+
+				// 匹配带别名的 Wiki 链接
+				while ((match = wikiLinkAliasPattern.exec(content)) !== null) {
+					const path = match[1].toLowerCase();
+					referenced.add(path);
+					const fileName = path.split('/').pop() || path;
+					referenced.add(fileName);
+				}
+
+				// 匹配 Markdown 图片链接
+				while ((match = markdownLinkPattern.exec(content)) !== null) {
+					const url = match[1];
+					// 只处理相对路径或仓库内文件
+					if (!url.startsWith('http')) {
+						const filename = url.split('/').pop()?.toLowerCase() || '';
+						referenced.add(filename);
+						// 也添加完整路径
+						referenced.add(url.toLowerCase());
+					}
+				}
+			}));
+
+			// 让 UI 有机会更新
+			await new Promise(resolve => setTimeout(resolve, 0));
+		}
+
+		// 扫描完成，显示完成通知
+		// 注意：不使用 setMessage()，因为它会创建新的 Notice
+		if (scanNotice) {
+			scanNotice.hide();
+			new Notice(this.t('scanComplete') + ` (${totalFiles} ${this.t('filesScanned')})`);
+		}
+
+		// 更新缓存
+		this.referencedImagesCache = referenced;
+		this.cacheTimestamp = now;
 
 		return referenced;
 	}
@@ -1104,10 +1199,11 @@ export default class ImageManagerPlugin extends Plugin {
 		}
 
 		// 移动到隔离文件夹
+		// 使用双下划线 __ 作为分隔符，避免文件名中包含下划线时解析错误
 		const trashPath = this.settings.trashFolder;
 		const fileName = file.name;
 		const timestamp = Date.now();
-		const newFileName = `${timestamp}_${fileName}`;
+		const newFileName = `${timestamp}__${fileName}`;
 		const targetPath = `${trashPath}/${newFileName}`;
 
 		try {

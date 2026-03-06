@@ -6,6 +6,7 @@ export class MediaPreviewModal extends Modal {
 	file: TFile;
 	currentIndex: number = 0;
 	allFiles: TFile[] = [];
+	private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
 	constructor(app: any, plugin: ImageManagerPlugin, file: TFile, allFiles: TFile[] = []) {
 		super(app);
@@ -38,8 +39,10 @@ export class MediaPreviewModal extends Modal {
 		// 信息栏
 		this.renderInfoBar(contentEl);
 
-		// 键盘导航
-		this.registerKeyboardNav();
+		// 键盘导航（根据设置决定是否启用）
+		if (this.plugin.settings.enableKeyboardNav) {
+			this.registerKeyboardNav();
+		}
 	}
 
 	/**
@@ -153,7 +156,7 @@ export class MediaPreviewModal extends Modal {
 	 * 注册键盘导航
 	 */
 	registerKeyboardNav() {
-		const handleKey = (e: KeyboardEvent) => {
+		this.keydownHandler = (e: KeyboardEvent) => {
 			switch (e.key) {
 				case 'ArrowLeft':
 					this.prev();
@@ -167,7 +170,7 @@ export class MediaPreviewModal extends Modal {
 			}
 		};
 
-		this.modalEl.addEventListener('keydown', handleKey);
+		this.modalEl.addEventListener('keydown', this.keydownHandler);
 	}
 
 	/**
@@ -201,7 +204,12 @@ export class MediaPreviewModal extends Modal {
 	}
 
 	onClose() {
-		const { contentEl } = this;
+		const { contentEl, modalEl } = this;
+		// 移除键盘事件监听器，防止内存泄漏
+		if (this.keydownHandler) {
+			modalEl.removeEventListener('keydown', this.keydownHandler);
+			this.keydownHandler = null;
+		}
 		contentEl.empty();
 	}
 }
