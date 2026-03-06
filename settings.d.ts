@@ -19,11 +19,13 @@ export interface ImageManagerSettings {
     pageSize: number;
     enablePreviewModal: boolean;
     enableKeyboardNav: boolean;
+    language: 'zh' | 'en' | 'system';
 }
 export declare const DEFAULT_SETTINGS: ImageManagerSettings;
 export declare class SettingsTab extends PluginSettingTab {
     plugin: ImageManagerPlugin;
     constructor(app: App, plugin: ImageManagerPlugin);
+    private t;
     display(): void;
 }
 //# sourceMappingURL=settings.d.ts.map

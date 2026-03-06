@@ -1,7 +1,19 @@
 import { Plugin, Editor, TFile, Menu } from 'obsidian';
 import { ImageManagerSettings } from './settings';
+import { Language } from './utils/i18n';
 export default class ImageManagerPlugin extends Plugin {
     settings: ImageManagerSettings;
+    private referencedImagesCache;
+    private cacheTimestamp;
+    private static readonly CACHE_DURATION;
+    /**
+     * 获取当前语言设置
+     */
+    getCurrentLanguage(): Language;
+    /**
+     * 翻译函数
+     */
+    t(key: string, params?: Record<string, string | number>): string;
     onload(): Promise<void>;
     /**
      * 注册快捷键
@@ -17,6 +29,8 @@ export default class ImageManagerPlugin extends Plugin {
     openMediaPreview(file: TFile): void;
     onunload(): void;
     addStyle(): void;
+    loadExternalStyles(): Promise<void>;
+    addInlineStyle(): void;
     loadSettings(): Promise<void>;
     saveSettings(): Promise<void>;
     openImageLibrary(): Promise<void>;
