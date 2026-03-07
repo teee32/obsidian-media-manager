@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.3] - 2026-03-07
+## [1.1.4] - 2026-03-07
 
 ### Fixed
 - 修复 Windows 路径兼容问题：统一规范化路径分隔符，解决媒体库过滤、隔离目录加载/恢复、引用扫描异常
