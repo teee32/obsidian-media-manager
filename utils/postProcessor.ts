@@ -7,6 +7,7 @@ import { normalizeVaultPath } from './path';
 /**
  * 图片对齐 PostProcessor
  * 渲染 ===center===、===left===、===right=== 语法
+ * 以及新的 ![[image|center]] 扩展链接语法
  */
 export class AlignmentPostProcessor {
 	plugin: ImageManagerPlugin;
@@ -42,7 +43,11 @@ export class AlignmentPostProcessor {
 			const text = node.textContent || '';
 			const parentElement = node.parentElement;
 			if (!parentElement) continue;
+			// 检测旧的 ===center=== 语法 或新的 ![[image|center]] 语法
 			if (text.includes('===') && (text.includes('center') || text.includes('left') || text.includes('right'))) {
+				nodesToProcess.push({ node, parent: parentElement });
+			} else if (text.includes('|center') || text.includes('|left') || text.includes('|right')) {
+				// 新语法: ![[image|center]]
 				nodesToProcess.push({ node, parent: parentElement });
 			}
 		}
@@ -58,21 +63,21 @@ export class AlignmentPostProcessor {
 	 */
 	private processNode(node: Text, parent: HTMLElement) {
 		const text = node.textContent || '';
-
-		// 匹配对齐块: ===center=== ... === 或 ===left=== ... === 等
-		const blockRegex = /===\s*(center|left|right)\s*===\s*([\s\S]*?)\s*===/gi;
-		let match;
 		let lastIndex = 0;
 		const fragment = document.createDocumentFragment();
 
-		while ((match = blockRegex.exec(text)) !== null) {
+		// 1. 先匹配新的扩展链接语法 ![[image|center]]
+		const newLinkRegex = /!?\[\[([^|\]]+)\|(center|left|right)\]\]/gi;
+		let match;
+
+		while ((match = newLinkRegex.exec(text)) !== null) {
 			// 添加匹配之前的文本
 			if (match.index > lastIndex) {
 				fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
 			}
 
-			const alignment = match[1].toLowerCase() as AlignmentType;
-			const content = match[2].trim();
+			const imagePath = match[1].trim();
+			const alignment = match[2].toLowerCase() as AlignmentType;
 
 			// 创建对齐容器
 			const alignContainer = document.createElement('div');
@@ -80,15 +85,44 @@ export class AlignmentPostProcessor {
 			alignContainer.style.textAlign = alignment;
 			alignContainer.style.margin = '10px 0';
 
-			// 渲染内容 - 同步处理
-			this.renderImageSync(content, alignContainer);
+			// 渲染图片
+			this.renderImageSync(`![[${imagePath}]]`, alignContainer);
 
 			fragment.appendChild(alignContainer);
 			lastIndex = match.index + match[0].length;
 		}
 
-		// 如果没有匹配到任何块，保持原样
+		// 2. 然后匹配旧的块语法 ===center=== ... ===
 		if (lastIndex === 0) {
+			// 只有在没有匹配到新语法时才处理旧语法（避免重复处理）
+			const blockRegex = /===\s*(center|left|right)\s*===\s*([\s\S]*?)\s*===/gi;
+			lastIndex = 0;
+
+			while ((match = blockRegex.exec(text)) !== null) {
+				// 添加匹配之前的文本
+				if (match.index > lastIndex) {
+					fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+				}
+
+				const alignment = match[1].toLowerCase() as AlignmentType;
+				const content = match[2].trim();
+
+				// 创建对齐容器
+				const alignContainer = document.createElement('div');
+				alignContainer.className = `alignment-${alignment}`;
+				alignContainer.style.textAlign = alignment;
+				alignContainer.style.margin = '10px 0';
+
+				// 渲染内容 - 同步处理
+				this.renderImageSync(content, alignContainer);
+
+				fragment.appendChild(alignContainer);
+				lastIndex = match.index + match[0].length;
+			}
+		}
+
+		// 如果没有匹配到任何语法，保持原样
+		if (lastIndex === 0 && fragment.childNodes.length === 0) {
 			return;
 		}
 

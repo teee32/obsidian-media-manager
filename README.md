@@ -29,21 +29,23 @@
 ![Media Library](./assets/media-library.png)
 
 #### 图片对齐
-支持使用简洁的语法对图片对齐：
+支持使用简洁的扩展链接语法对图片对齐：
 
 ```markdown
-===center===
-![[image.png]]
-===
+// 居中对齐
+![[image.png|center]]
 
-===left===
-![[photo.jpg]]
-===
+// 居左对齐
+![[photo.jpg|left]]
 
-===right===
-![[screenshot.png]]
-===
+// 居右对齐
+![[screenshot.png|right]]
+
+// 也可以设置宽度
+![[image.png|300]]
 ```
+
+> 提示：旧语法 `===center=== ... ===` 仍然兼容支持
 
 #### 隔离文件管理
 - 删除的文件先移入隔离文件夹
@@ -149,21 +151,23 @@ A powerful Obsidian media management plugin that helps you better manage and org
 ![Media Library](./assets/media-library.png)
 
 #### Image Alignment
-Align images using simple syntax:
+Align images using the extended link syntax:
 
 ```markdown
-===center===
-![[image.png]]
-===
+// Center alignment
+![[image.png|center]]
 
-===left===
-![[photo.jpg]]
-===
+// Left alignment
+![[photo.jpg|left]]
 
-===right===
-![[screenshot.png]]
-===
+// Right alignment
+![[screenshot.png|right]]
+
+// You can also set width
+![[image.png|300]]
 ```
+
+> Note: The old syntax `===center=== ... ===` is still supported for backward compatibility
 
 #### Quarantine File Management
 - Deleted files are moved to quarantine folder first
