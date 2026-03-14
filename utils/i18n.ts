@@ -113,13 +113,22 @@ export interface Translations {
 	languageSystem: string;
 	pageSize: string;
 	pageSizeDesc: string;
-	enablePreviewModal: string;
-	enablePreviewModalDesc: string;
-	enableKeyboardNav: string;
-	enableKeyboardNavDesc: string;
-	keyboardShortcuts: string;
-	shortcutsDesc: string;
-	shortcutOpenLibrary: string;
+		enablePreviewModal: string;
+		enablePreviewModalDesc: string;
+		enableKeyboardNav: string;
+		enableKeyboardNavDesc: string;
+		safeScanSettings: string;
+		safeScanEnabledDesc: string;
+		safeScanUnrefDays: string;
+		safeScanUnrefDaysDesc: string;
+		safeScanMinSize: string;
+		safeScanMinSizeDesc: string;
+		duplicateDetectionSettings: string;
+		duplicateThresholdSetting: string;
+		duplicateThresholdDesc: string;
+		keyboardShortcuts: string;
+		shortcutsDesc: string;
+		shortcutOpenLibrary: string;
 	shortcutFindUnreferenced: string;
 	shortcutOpenTrash: string;
 	commands: string;
@@ -221,6 +230,41 @@ export interface Translations {
 	deletedWithQuarantineFailed: string;
 	operationFailed: string;
 	processing: string;
+
+	// v2.0 新增
+	duplicateDetection: string;
+	duplicateDetectionDesc: string;
+	noDuplicatesFound: string;
+	startScan: string;
+	scanProgress: string;
+	similarityThreshold: string;
+	duplicateGroupsFound: string;
+	duplicateGroup: string;
+	files: string;
+	suggestKeep: string;
+	quarantine: string;
+	quarantineAllDuplicates: string;
+	duplicatesFound: string;
+	duplicatesQuarantined: string;
+	typeDistribution: string;
+	unreferencedRate: string;
+	referencedBy: string;
+	selectedCount: string;
+	batchRestore: string;
+	batchDelete: string;
+	noItemsSelected: string;
+	confirmBatchRestore: string;
+	batchRestoreCompleted: string;
+	safeScan: string;
+	safeScanDesc: string;
+	safeScanStarted: string;
+	safeScanNoResults: string;
+	safeScanConfirm: string;
+	safeScanComplete: string;
+	safeScanFailed: string;
+	cmdDuplicateDetection: string;
+	organizing: string;
+	organizeComplete: string;
 }
 
 const zh: Translations = {
@@ -331,13 +375,22 @@ const zh: Translations = {
 	languageSystem: '跟随系统',
 	pageSize: '分页大小',
 	pageSizeDesc: '媒体库中每页显示的文件数量',
-	enablePreviewModal: '启用预览 Modal',
-	enablePreviewModalDesc: '点击媒体文件时打开预览窗口',
-	enableKeyboardNav: '启用键盘导航',
-	enableKeyboardNavDesc: '在预览窗口中使用方向键切换图片',
-	keyboardShortcuts: '快捷键',
-	shortcutsDesc: '插件支持的快捷键：',
-	shortcutOpenLibrary: 'Ctrl+Shift+M - 打开媒体库',
+		enablePreviewModal: '启用预览 Modal',
+		enablePreviewModalDesc: '点击媒体文件时打开预览窗口',
+		enableKeyboardNav: '启用键盘导航',
+		enableKeyboardNavDesc: '在预览窗口中使用方向键切换图片',
+		safeScanSettings: '安全扫描',
+		safeScanEnabledDesc: '启用后可在隔离文件管理中执行条件扫描',
+		safeScanUnrefDays: '未引用天数',
+		safeScanUnrefDaysDesc: '仅扫描超过此天数未被引用的媒体文件',
+		safeScanMinSize: '最小文件大小 (MB)',
+		safeScanMinSizeDesc: '仅扫描大于等于此大小的媒体文件',
+		duplicateDetectionSettings: '重复检测',
+		duplicateThresholdSetting: '相似度阈值',
+		duplicateThresholdDesc: '达到该百分比才会被判定为重复',
+		keyboardShortcuts: '快捷键',
+		shortcutsDesc: '插件支持的快捷键：',
+		shortcutOpenLibrary: 'Ctrl+Shift+M - 打开媒体库',
 	shortcutFindUnreferenced: 'Ctrl+Shift+U - 查找未引用媒体',
 	shortcutOpenTrash: 'Ctrl+Shift+T - 打开隔离文件管理',
 	commands: '快捷命令',
@@ -438,7 +491,42 @@ const zh: Translations = {
 	deleteFailedWithName: '删除失败: {name}',
 	deletedWithQuarantineFailed: '已删除: {name}（隔离失败）',
 	operationFailed: '操作失败: {name}',
-	processing: '处理中...'
+	processing: '处理中...',
+
+	// v2.0 新增
+	duplicateDetection: '重复检测',
+	duplicateDetectionDesc: '使用感知哈希算法检测像素级重复图片，非文件名对比',
+	noDuplicatesFound: '未发现重复文件，点击“开始扫描”检测',
+	startScan: '开始扫描',
+	scanProgress: '扫描进度: {current}/{total}',
+	similarityThreshold: '相似度阈值: {value}%',
+	duplicateGroupsFound: '发现 {groups} 组重复，共 {files} 个冗余文件',
+	duplicateGroup: '重复组 #{index}',
+	files: '个文件',
+	suggestKeep: '✅ 建议保留',
+	quarantine: '隔离',
+	quarantineAllDuplicates: '一键隔离所有重复',
+	duplicatesFound: '发现 {groups} 组重复，共 {files} 个冗余文件',
+	duplicatesQuarantined: '已隔离 {count} 个重复文件',
+	typeDistribution: '类型分布',
+	unreferencedRate: '未引用率',
+	referencedBy: '被 {count} 篇笔记引用',
+	selectedCount: '已选择 {count} 项',
+	batchRestore: '批量恢复',
+	batchDelete: '批量删除',
+	noItemsSelected: '请先选择文件',
+	confirmBatchRestore: '确认恢复 {count} 个文件？',
+	batchRestoreCompleted: '已恢复 {count} 个文件',
+	safeScan: '安全扫描',
+	safeScanDesc: '自动扫描未引用、超期、超大的媒体文件',
+	safeScanStarted: '开始安全扫描...',
+	safeScanNoResults: '未发现符合条件的文件',
+	safeScanConfirm: '发现 {count} 个文件符合条件（未引用>{days}天 + 大小>{size}），确认送入隔离区？',
+	safeScanComplete: '安全扫描完成，已隔离 {count} 个文件',
+	safeScanFailed: '安全扫描失败',
+	cmdDuplicateDetection: '打开重复检测',
+	organizing: '整理中',
+	organizeComplete: '已整理 {count} 个文件'
 };
 
 const en: Translations = {
@@ -549,13 +637,22 @@ const en: Translations = {
 	languageSystem: 'Follow System',
 	pageSize: 'Page Size',
 	pageSizeDesc: 'Number of files per page in media library',
-	enablePreviewModal: 'Enable Preview Modal',
-	enablePreviewModalDesc: 'Open preview window when clicking media files',
-	enableKeyboardNav: 'Enable Keyboard Navigation',
-	enableKeyboardNavDesc: 'Use arrow keys to navigate in preview window',
-	keyboardShortcuts: 'Keyboard Shortcuts',
-	shortcutsDesc: 'Plugin keyboard shortcuts:',
-	shortcutOpenLibrary: 'Ctrl+Shift+M - Open Media Library',
+		enablePreviewModal: 'Enable Preview Modal',
+		enablePreviewModalDesc: 'Open preview window when clicking media files',
+		enableKeyboardNav: 'Enable Keyboard Navigation',
+		enableKeyboardNavDesc: 'Use arrow keys to navigate in preview window',
+		safeScanSettings: 'Safe Scan',
+		safeScanEnabledDesc: 'Enable conditional scanning from trash management view',
+		safeScanUnrefDays: 'Unreferenced Days',
+		safeScanUnrefDaysDesc: 'Only scan media files unreferenced for at least this many days',
+		safeScanMinSize: 'Minimum File Size (MB)',
+		safeScanMinSizeDesc: 'Only scan media files at or above this size',
+		duplicateDetectionSettings: 'Duplicate Detection',
+		duplicateThresholdSetting: 'Similarity Threshold',
+		duplicateThresholdDesc: 'Only groups at or above this percentage are treated as duplicates',
+		keyboardShortcuts: 'Keyboard Shortcuts',
+		shortcutsDesc: 'Plugin keyboard shortcuts:',
+		shortcutOpenLibrary: 'Ctrl+Shift+M - Open Media Library',
 	shortcutFindUnreferenced: 'Ctrl+Shift+U - Find Unreferenced Media',
 	shortcutOpenTrash: 'Ctrl+Shift+T - Open Trash Management',
 	commands: 'Commands',
@@ -656,7 +753,42 @@ const en: Translations = {
 	deleteFailedWithName: 'Delete failed: {name}',
 	deletedWithQuarantineFailed: 'Deleted: {name} (quarantine failed)',
 	operationFailed: 'Operation failed: {name}',
-	processing: 'Processing...'
+	processing: 'Processing...',
+
+	// v2.0 new
+	duplicateDetection: 'Duplicate Detection',
+	duplicateDetectionDesc: 'Detect pixel-level duplicate images using perceptual hashing algorithm',
+	noDuplicatesFound: 'No duplicates found. Click "Start Scan" to detect.',
+	startScan: 'Start Scan',
+	scanProgress: 'Scanning: {current}/{total}',
+	similarityThreshold: 'Similarity threshold: {value}%',
+	duplicateGroupsFound: 'Found {groups} group(s), {files} redundant file(s)',
+	duplicateGroup: 'Group #{index}',
+	files: 'files',
+	suggestKeep: '✅ Keep',
+	quarantine: 'Quarantine',
+	quarantineAllDuplicates: 'Quarantine All Duplicates',
+	duplicatesFound: 'Found {groups} group(s), {files} redundant file(s)',
+	duplicatesQuarantined: 'Quarantined {count} duplicate file(s)',
+	typeDistribution: 'Type Distribution',
+	unreferencedRate: 'Unreferenced Rate',
+	referencedBy: 'Referenced by {count} note(s)',
+	selectedCount: '{count} selected',
+	batchRestore: 'Batch Restore',
+	batchDelete: 'Batch Delete',
+	noItemsSelected: 'Please select files first',
+	confirmBatchRestore: 'Restore {count} file(s)?',
+	batchRestoreCompleted: 'Restored {count} file(s)',
+	safeScan: 'Safe Scan',
+	safeScanDesc: 'Auto-detect unreferenced, old, and large media files',
+	safeScanStarted: 'Starting safe scan...',
+	safeScanNoResults: 'No files match the criteria',
+	safeScanConfirm: 'Found {count} file(s) matching criteria (unreferenced >{days} days + size >{size}). Send to quarantine?',
+	safeScanComplete: 'Safe scan complete, quarantined {count} file(s)',
+	safeScanFailed: 'Safe scan failed',
+	cmdDuplicateDetection: 'Open Duplicate Detection',
+	organizing: 'Organizing',
+	organizeComplete: 'Organized {count} file(s)'
 };
 
 const translations: Record<Language, Translations> = { zh, en };

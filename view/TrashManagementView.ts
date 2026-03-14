@@ -14,7 +14,16 @@ interface TrashItem {
 	name: string;
 	size: number;
 	modified: number;
-	originalPath?: string;  // 从隔离文件夹名字中提取的原始路径
+	originalPath?: string;
+	referenceCount: number;
+	selected: boolean;
+}
+
+interface DashboardStats {
+	totalFiles: number;
+	totalSize: number;
+	byType: Record<string, number>;
+	unreferencedRate: number;
 }
 
 export class TrashManagementView extends ItemView {
@@ -36,7 +45,6 @@ export class TrashManagementView extends ItemView {
 	}
 
 	async onOpen() {
-		// 等待 contentEl 准备好
 		let retries = 0;
 		while (!this.contentEl && retries < 10) {
 			await new Promise(resolve => setTimeout(resolve, 50));
@@ -58,23 +66,17 @@ export class TrashManagementView extends ItemView {
 	 * 加载隔离文件夹中的文件
 	 */
 	async loadTrashItems() {
-		// 如果视图已关闭或 contentEl 不可用，直接返回
-		if (!this.contentEl) {
-			return;
-		}
-
+		if (!this.contentEl) return;
 		if (this.isLoading) return;
 		this.isLoading = true;
 		this.contentEl.empty();
 
-		// 显示加载状态
 		const loading = this.contentEl.createDiv({ cls: 'loading-state' });
 		loading.createEl('div', { cls: 'spinner' });
 		loading.createDiv({ text: this.plugin.t('loadingTrashFiles') });
 
 		try {
 			const trashPath = normalizeVaultPath(this.plugin.settings.trashFolder);
-
 			if (!trashPath || !isPathSafe(trashPath)) {
 				this.trashItems = [];
 				await this.renderView();
@@ -82,19 +84,25 @@ export class TrashManagementView extends ItemView {
 			}
 
 			const trashFolder = this.plugin.app.vault.getAbstractFileByPath(trashPath);
-
 			if (!trashFolder || !(trashFolder instanceof TFolder)) {
 				this.trashItems = [];
 				await this.renderView();
 				return;
 			}
 
-			// 获取隔离文件夹中的所有文件
+			// 获取引用集合
+			const referencedImages = await this.plugin.getReferencedImages();
+
 			this.trashItems = [];
 			for (const file of trashFolder.children) {
 				if (file instanceof TFile) {
 					const originalPath = this.extractOriginalPath(file.name);
 					const displayName = originalPath ? getFileNameFromPath(originalPath) || file.name : file.name;
+
+					// 计算引用次数
+					const refCount = originalPath
+						? this.countReferences(originalPath, referencedImages)
+						: 0;
 
 					this.trashItems.push({
 						file,
@@ -103,14 +111,14 @@ export class TrashManagementView extends ItemView {
 						name: displayName,
 						size: file.stat.size,
 						modified: file.stat.mtime,
-						originalPath
+						originalPath,
+						referenceCount: refCount,
+						selected: false
 					});
 				}
 			}
 
-			// 按修改时间排序（最新的在前）
 			this.trashItems.sort((a, b) => b.modified - a.modified);
-
 			await this.renderView();
 		} catch (error) {
 			console.error('加载隔离文件失败:', error);
@@ -124,38 +132,104 @@ export class TrashManagementView extends ItemView {
 	}
 
 	/**
+	 * 计算文件在所有笔记中的引用次数
+	 */
+	private countReferences(originalPath: string, referencedImages: Set<string>): number {
+		const normalizedOriginalPath = normalizeVaultPath(originalPath).toLowerCase();
+		const fileName = (getFileNameFromPath(normalizedOriginalPath) || normalizedOriginalPath).toLowerCase();
+
+		if (!referencedImages.has(normalizedOriginalPath) && !referencedImages.has(fileName)) {
+			return 0;
+		}
+
+		let count = 0;
+
+		// 检查各种引用格式
+		const markdownFiles = this.app.vault.getMarkdownFiles();
+		for (const md of markdownFiles) {
+			const cache = this.app.metadataCache.getFileCache(md);
+			if (!cache) continue;
+
+			// 检查 links 和 embeds
+			const embeds = cache.embeds || [];
+			const links = cache.links || [];
+
+			for (const embed of embeds) {
+				const linkPath = normalizeVaultPath(embed.link).toLowerCase();
+				const linkName = (getFileNameFromPath(linkPath) || linkPath).toLowerCase();
+				if (linkPath === normalizedOriginalPath || linkName === fileName ||
+					linkPath.endsWith('/' + fileName)) {
+					count++;
+				}
+			}
+			for (const link of links) {
+				const linkPath = normalizeVaultPath(link.link).toLowerCase();
+				const linkName = (getFileNameFromPath(linkPath) || linkPath).toLowerCase();
+				if (linkPath === normalizedOriginalPath || linkName === fileName ||
+					linkPath.endsWith('/' + fileName)) {
+					count++;
+				}
+			}
+		}
+
+		return count;
+	}
+
+	/**
 	 * 从隔离文件名中提取原始路径
-	 * 新格式: timestamp__encodeURIComponent(originalPath)
-	 * 旧格式: timestamp__filename.ext
 	 */
 	private extractOriginalPath(fileName: string): string | undefined {
 		const separatorIndex = fileName.indexOf('__');
-		if (separatorIndex === -1) {
-			return undefined;
-		}
+		if (separatorIndex === -1) return undefined;
 
 		const encodedPart = fileName.substring(separatorIndex + 2);
-		if (!encodedPart) {
-			return undefined;
-		}
+		if (!encodedPart) return undefined;
 
 		const decoded = normalizeVaultPath(safeDecodeURIComponent(encodedPart));
 		return decoded || undefined;
 	}
 
 	/**
+	 * 计算仪表盘统计数据
+	 */
+	private computeStats(): DashboardStats {
+		const byType: Record<string, number> = {};
+		let totalSize = 0;
+		let unreferencedCount = 0;
+
+		for (const item of this.trashItems) {
+			totalSize += item.size;
+			const type = getMediaType(item.name) || 'other';
+			byType[type] = (byType[type] || 0) + 1;
+			if (item.referenceCount === 0) {
+				unreferencedCount++;
+			}
+		}
+
+		return {
+			totalFiles: this.trashItems.length,
+			totalSize,
+			byType,
+			unreferencedRate: this.trashItems.length > 0
+				? Math.round((unreferencedCount / this.trashItems.length) * 100)
+				: 0
+		};
+	}
+
+	/**
 	 * 渲染视图
 	 */
 	async renderView() {
-		// 如果视图已关闭或 contentEl 不可用，直接返回
-		if (!this.contentEl) {
-			return;
-		}
-
+		if (!this.contentEl) return;
 		this.contentEl.empty();
 
-		// 创建头部
+		// 头部
 		this.renderHeader();
+
+		// 仪表盘
+		if (this.trashItems.length > 0) {
+			this.renderDashboard();
+		}
 
 		if (this.trashItems.length === 0) {
 			this.contentEl.createDiv({
@@ -165,22 +239,11 @@ export class TrashManagementView extends ItemView {
 			return;
 		}
 
-		// 创建统计信息
-		const stats = this.contentEl.createDiv({ cls: 'stats-bar' });
-		stats.createSpan({
-			text: this.plugin.t('filesInTrash').replace('{count}', String(this.trashItems.length)),
-			cls: 'stats-count'
-		});
+		// 批量操作工具栏
+		this.renderBatchToolbar();
 
-		const totalSize = this.trashItems.reduce((sum, item) => sum + item.size, 0);
-		stats.createSpan({
-			text: this.plugin.t('totalSize').replace('{size}', formatFileSize(totalSize)),
-			cls: 'stats-size'
-		});
-
-		// 创建文件列表
+		// 文件列表
 		const list = this.contentEl.createDiv({ cls: 'trash-list' });
-
 		for (const item of this.trashItems) {
 			this.renderTrashItem(list, item);
 		}
@@ -191,20 +254,26 @@ export class TrashManagementView extends ItemView {
 	 */
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'trash-header' });
-
 		header.createEl('h2', { text: this.plugin.t('trashManagement') });
 
 		const desc = header.createDiv({ cls: 'header-description' });
 		desc.createSpan({ text: this.plugin.t('trashManagementDesc') });
 
+		const actions = header.createDiv({ cls: 'header-actions' });
+
 		// 刷新按钮
-		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
+		const refreshBtn = actions.createEl('button', { cls: 'refresh-button' });
 		setIcon(refreshBtn, 'refresh-cw');
 		refreshBtn.addEventListener('click', () => this.loadTrashItems());
 		refreshBtn.title = this.plugin.t('refresh');
 
-		// 操作按钮
-		const actions = header.createDiv({ cls: 'header-actions' });
+		// 安全扫描按钮
+		const scanBtn = actions.createEl('button', { cls: 'action-button' });
+		setIcon(scanBtn, 'shield-check');
+		scanBtn.createSpan({ text: ` ${this.plugin.t('safeScan')}` });
+		scanBtn.disabled = !this.plugin.settings.safeScanEnabled;
+		scanBtn.addEventListener('click', () => this.runSafeScan());
+		scanBtn.title = this.plugin.t('safeScanDesc');
 
 		// 清空隔离文件夹按钮
 		const clearAllBtn = actions.createEl('button', { cls: 'action-button danger' });
@@ -214,35 +283,139 @@ export class TrashManagementView extends ItemView {
 	}
 
 	/**
+	 * 渲染统计仪表盘
+	 */
+	private renderDashboard() {
+		const stats = this.computeStats();
+		const dashboard = this.contentEl.createDiv({ cls: 'trash-dashboard' });
+
+		// 卡片1：总文件数
+		const cardFiles = dashboard.createDiv({ cls: 'dashboard-card' });
+		const filesIcon = cardFiles.createDiv({ cls: 'dashboard-icon' });
+		setIcon(filesIcon, 'files');
+		cardFiles.createDiv({ cls: 'dashboard-value', text: String(stats.totalFiles) });
+		cardFiles.createDiv({ cls: 'dashboard-label', text: this.plugin.t('filesInTrash').replace('{count}', '') });
+
+		// 卡片2：占用空间
+		const cardSize = dashboard.createDiv({ cls: 'dashboard-card' });
+		const sizeIcon = cardSize.createDiv({ cls: 'dashboard-icon' });
+		setIcon(sizeIcon, 'hard-drive');
+		cardSize.createDiv({ cls: 'dashboard-value', text: formatFileSize(stats.totalSize) });
+		cardSize.createDiv({ cls: 'dashboard-label', text: this.plugin.t('totalSize').replace('{size}', '') });
+
+		// 卡片3：类型分布
+		const cardType = dashboard.createDiv({ cls: 'dashboard-card' });
+		const typeIcon = cardType.createDiv({ cls: 'dashboard-icon' });
+		setIcon(typeIcon, 'pie-chart');
+		const typeParts: string[] = [];
+		for (const [type, count] of Object.entries(stats.byType)) {
+			typeParts.push(`${type}: ${count}`);
+		}
+		cardType.createDiv({ cls: 'dashboard-value', text: typeParts.join(', ') || '-' });
+		cardType.createDiv({ cls: 'dashboard-label', text: this.plugin.t('typeDistribution') });
+
+		// 卡片4：未引用率
+		const cardUnref = dashboard.createDiv({ cls: 'dashboard-card' });
+		const unrefIcon = cardUnref.createDiv({ cls: 'dashboard-icon' });
+		setIcon(unrefIcon, 'unlink');
+		cardUnref.createDiv({ cls: 'dashboard-value', text: `${stats.unreferencedRate}%` });
+		cardUnref.createDiv({ cls: 'dashboard-label', text: this.plugin.t('unreferencedRate') });
+	}
+
+	/**
+	 * 渲染批量操作工具栏
+	 */
+	private renderBatchToolbar() {
+		const toolbar = this.contentEl.createDiv({ cls: 'batch-toolbar' });
+
+		// 全选/反选
+		const selectAllBtn = toolbar.createEl('button', { cls: 'toolbar-btn' });
+		setIcon(selectAllBtn, 'check-square');
+		selectAllBtn.createSpan({ text: ` ${this.plugin.t('selectAll')}` });
+		selectAllBtn.addEventListener('click', () => {
+			const allSelected = this.trashItems.every(i => i.selected);
+			this.trashItems.forEach(i => i.selected = !allSelected);
+			this.renderView();
+		});
+
+		const selectedCount = this.trashItems.filter(i => i.selected).length;
+		toolbar.createSpan({
+			cls: 'selected-count',
+			text: this.plugin.t('selectedCount', { count: selectedCount })
+		});
+
+		// 批量恢复
+		const batchRestoreBtn = toolbar.createEl('button', { cls: 'toolbar-btn success' });
+		setIcon(batchRestoreBtn, 'rotate-ccw');
+		batchRestoreBtn.createSpan({ text: ` ${this.plugin.t('batchRestore')}` });
+		batchRestoreBtn.addEventListener('click', () => this.batchRestore());
+
+		// 批量删除
+		const batchDeleteBtn = toolbar.createEl('button', { cls: 'toolbar-btn danger' });
+		setIcon(batchDeleteBtn, 'trash-2');
+		batchDeleteBtn.createSpan({ text: ` ${this.plugin.t('batchDelete')}` });
+		batchDeleteBtn.addEventListener('click', () => this.batchDelete());
+	}
+
+	/**
 	 * 渲染单个隔离文件项
 	 */
 	renderTrashItem(container: HTMLElement, item: TrashItem) {
-		const itemEl = container.createDiv({ cls: 'trash-item' });
+		const itemEl = container.createDiv({ cls: `trash-item ${item.selected ? 'selected' : ''}` });
 
-		// 文件图标
-		const icon = itemEl.createDiv({ cls: 'item-icon' });
-		const ext = item.name.split('.').pop()?.toLowerCase() || '';
-		setIcon(icon, this.getFileIcon(ext));
+		// 复选框
+		const checkbox = itemEl.createEl('input', {
+			type: 'checkbox',
+			cls: 'item-checkbox'
+		}) as HTMLInputElement;
+		checkbox.checked = item.selected;
+		checkbox.addEventListener('change', () => {
+			item.selected = checkbox.checked;
+			itemEl.toggleClass('selected', item.selected);
+			// 更新工具栏计数
+			const toolbar = this.contentEl.querySelector('.batch-toolbar .selected-count');
+			if (toolbar) {
+				const count = this.trashItems.filter(i => i.selected).length;
+				toolbar.textContent = this.plugin.t('selectedCount', { count });
+			}
+		});
+
+		// 缩略图
+		const thumbEl = itemEl.createDiv({ cls: 'item-thumbnail' });
+		this.renderItemThumbnail(thumbEl, item);
 
 		// 文件信息
 		const info = itemEl.createDiv({ cls: 'item-info' });
 		info.createDiv({ cls: 'item-name', text: item.name });
+
 		if (item.originalPath) {
-			info.createDiv({ cls: 'item-original-path', text: `${this.plugin.t('originalPath')}: ${item.originalPath}` });
+			info.createDiv({
+				cls: 'item-original-path',
+				text: `${this.plugin.t('originalPath')}: ${item.originalPath}`
+			});
 		}
-		info.createDiv({ cls: 'item-size', text: formatFileSize(item.size) });
-		info.createDiv({ cls: 'item-date', text: `${this.plugin.t('deletedTime')}: ${new Date(item.modified).toLocaleString()}` });
+
+		const meta = info.createDiv({ cls: 'item-meta' });
+		meta.createSpan({ cls: 'item-size', text: formatFileSize(item.size) });
+		meta.createSpan({
+			cls: 'item-date',
+			text: `${this.plugin.t('deletedTime')}: ${new Date(item.modified).toLocaleString()}`
+		});
+
+		// 引用次数徽章
+		const refBadge = info.createSpan({
+			cls: `ref-badge ${item.referenceCount > 0 ? 'ref-active' : 'ref-zero'}`,
+			text: this.plugin.t('referencedBy', { count: item.referenceCount })
+		});
 
 		// 操作按钮
 		const actions = itemEl.createDiv({ cls: 'item-actions' });
 
-		// 恢复按钮
 		const restoreBtn = actions.createEl('button', { cls: 'item-button success' });
 		setIcon(restoreBtn, 'rotate-ccw');
 		restoreBtn.addEventListener('click', () => this.restoreFile(item));
 		restoreBtn.title = this.plugin.t('restoreTooltip');
 
-		// 彻底删除按钮
 		const deleteBtn = actions.createEl('button', { cls: 'item-button danger' });
 		setIcon(deleteBtn, 'trash-2');
 		deleteBtn.addEventListener('click', () => this.confirmDelete(item));
@@ -253,6 +426,174 @@ export class TrashManagementView extends ItemView {
 			e.preventDefault();
 			this.showContextMenu(e as MouseEvent, item);
 		});
+	}
+
+	/**
+	 * 渲染条目缩略图
+	 */
+	private renderItemThumbnail(container: HTMLElement, item: TrashItem) {
+		const mediaType = getMediaType(item.name);
+
+		if (mediaType === 'image') {
+			const src = this.app.vault.getResourcePath(item.file);
+			const img = container.createEl('img', {
+				attr: { src, alt: item.name }
+			});
+			img.addEventListener('error', () => {
+				container.empty();
+				const icon = container.createDiv({ cls: 'thumb-icon' });
+				setIcon(icon, 'image');
+			});
+		} else {
+			const iconName = mediaType === 'video' ? 'video' :
+				mediaType === 'audio' ? 'music' :
+				mediaType === 'document' ? 'file-text' : 'file';
+			const icon = container.createDiv({ cls: 'thumb-icon' });
+			setIcon(icon, iconName);
+		}
+	}
+
+	/**
+	 * 安全扫描：自动查找孤立文件并送入隔离
+	 */
+	async runSafeScan() {
+		const settings = this.plugin.settings;
+		if (!settings.safeScanEnabled) {
+			new Notice(this.plugin.t('safeScanDesc'));
+			return;
+		}
+
+		const now = Date.now();
+		const dayMs = 24 * 60 * 60 * 1000;
+		const cutoffTime = now - (settings.safeScanUnrefDays * dayMs);
+		const minSize = settings.safeScanMinSize;
+
+		new Notice(this.plugin.t('safeScanStarted'));
+
+		try {
+			const referencedImages = await this.plugin.getReferencedImages();
+			const allMedia = this.plugin.fileIndex.isInitialized
+				? this.plugin.fileIndex.getFiles()
+					.map(e => this.app.vault.getAbstractFileByPath(e.path))
+					.filter((f): f is TFile => f instanceof TFile)
+				: await this.plugin.getAllImageFiles();
+
+			const trashPath = normalizeVaultPath(this.plugin.settings.trashFolder) || '';
+			const candidates: TFile[] = [];
+
+				for (const file of allMedia) {
+					// 排除已在隔离区的文件
+					if (trashPath && file.path.startsWith(trashPath + '/')) continue;
+
+					const normalizedPath = normalizeVaultPath(file.path).toLowerCase();
+					const normalizedName = file.name.toLowerCase();
+					const isReferenced = referencedImages.has(normalizedPath) ||
+						referencedImages.has(normalizedName);
+
+				if (!isReferenced &&
+					file.stat.mtime < cutoffTime &&
+					file.stat.size >= minSize) {
+					candidates.push(file);
+				}
+			}
+
+			if (candidates.length === 0) {
+				new Notice(this.plugin.t('safeScanNoResults'));
+				return;
+			}
+
+			// 确认对话框
+			const confirmed = await this.showConfirmModal(
+				this.plugin.t('safeScanConfirm', {
+					count: candidates.length,
+					days: settings.safeScanUnrefDays,
+					size: formatFileSize(minSize)
+				})
+			);
+
+			if (!confirmed) return;
+
+			let moved = 0;
+			for (const file of candidates) {
+				const result = await this.plugin.safeDeleteFile(file);
+				if (result) moved++;
+			}
+
+			new Notice(this.plugin.t('safeScanComplete', { count: moved }));
+			await this.loadTrashItems();
+		} catch (error) {
+			console.error('安全扫描失败:', error);
+			new Notice(this.plugin.t('safeScanFailed'));
+		}
+	}
+
+	/**
+	 * 批量恢复选中文件
+	 */
+	async batchRestore() {
+		const selected = this.trashItems.filter(i => i.selected);
+		if (selected.length === 0) {
+			new Notice(this.plugin.t('noItemsSelected'));
+			return;
+		}
+
+		const confirmed = await this.showConfirmModal(
+			this.plugin.t('confirmBatchRestore', { count: selected.length })
+		);
+		if (!confirmed) return;
+
+		let restored = 0;
+		for (const item of selected) {
+			try {
+				let targetPath = normalizeVaultPath(item.originalPath || '');
+				if (!targetPath) {
+					const separatorIndex = item.rawName.indexOf('__');
+					if (separatorIndex !== -1) {
+						targetPath = normalizeVaultPath(
+							safeDecodeURIComponent(item.rawName.substring(separatorIndex + 2))
+						);
+					} else {
+						targetPath = normalizeVaultPath(item.rawName);
+					}
+				}
+
+				if (targetPath) {
+					const result = await this.plugin.restoreFile(item.file, targetPath);
+					if (result) restored++;
+				}
+			} catch (error) {
+				console.warn(`恢复文件失败: ${item.name}`, error);
+			}
+		}
+
+		new Notice(this.plugin.t('batchRestoreComplete', { count: restored }));
+		await this.loadTrashItems();
+	}
+
+	/**
+	 * 批量删除选中文件
+	 */
+	async batchDelete() {
+		const selected = this.trashItems.filter(i => i.selected);
+		if (selected.length === 0) {
+			new Notice(this.plugin.t('noItemsSelected'));
+			return;
+		}
+
+		const confirmed = await this.showConfirmModal(
+			this.plugin.t('confirmClearTrash').replace('{count}', String(selected.length))
+		);
+		if (!confirmed) return;
+
+		const results = await Promise.all(
+			selected.map(item =>
+				this.plugin.app.vault.delete(item.file).then(() => true).catch(() => false)
+			)
+		);
+
+		const deleted = results.filter(r => r).length;
+		new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(deleted)));
+		await this.loadTrashItems();
 	}
 
 	/**
@@ -311,18 +652,14 @@ export class TrashManagementView extends ItemView {
 	 */
 	async restoreFile(item: TrashItem) {
 		try {
-			// 如果 originalPath 存在，使用它
-			// 如果 originalPath 为空，说明文件名没有被修改（不含时间戳前缀），应该使用原文件名
 			let targetPath = normalizeVaultPath(item.originalPath || '');
 			if (!targetPath) {
-				// 从隔离文件名中提取原始文件名（去掉时间戳前缀）
 				const separatorIndex = item.rawName.indexOf('__');
 				if (separatorIndex !== -1) {
 					targetPath = normalizeVaultPath(
 						safeDecodeURIComponent(item.rawName.substring(separatorIndex + 2))
 					);
 				} else {
-					// 完全没有时间戳前缀，直接使用原文件名
 					targetPath = normalizeVaultPath(item.rawName);
 				}
 			}
@@ -333,11 +670,8 @@ export class TrashManagementView extends ItemView {
 			}
 
 			const restored = await this.plugin.restoreFile(item.file, targetPath);
-			if (!restored) {
-				return;
-			}
+			if (!restored) return;
 
-			// 从列表中移除
 			this.trashItems = this.trashItems.filter(i => i.file.path !== item.file.path);
 			await this.renderView();
 		} catch (error) {
@@ -399,8 +733,6 @@ export class TrashManagementView extends ItemView {
 			try {
 				await this.plugin.app.vault.delete(item.file);
 				new Notice(this.plugin.t('fileDeleted').replace('{name}', item.name));
-
-				// 从列表中移除
 				this.trashItems = this.trashItems.filter(i => i.file.path !== item.file.path);
 				await this.renderView();
 			} catch (error) {
@@ -424,18 +756,12 @@ export class TrashManagementView extends ItemView {
 		);
 
 		if (confirmed) {
-			// 使用 Promise.all 并发处理删除
 			const results = await Promise.all(
-				this.trashItems.map(item => {
-					try {
-						return this.plugin.app.vault.delete(item.file).then(() => true).catch(() => false);
-					} catch {
-						return Promise.resolve(false);
-					}
-				})
+				this.trashItems.map(item =>
+					this.plugin.app.vault.delete(item.file).then(() => true).catch(() => false)
+				)
 			);
 
-			// 统计成功和失败的数量
 			const deleted = results.filter(r => r).length;
 			const errors = results.filter(r => !r).length;
 
@@ -454,22 +780,13 @@ export class TrashManagementView extends ItemView {
 	 * 获取文件图标
 	 */
 	private getFileIcon(ext: string): string {
-		// 使用 mediaTypes 中的 getMediaType 获取媒体类型
 		const mediaType = getMediaType(`filename.${ext}`);
-
 		switch (mediaType) {
-			case 'image':
-				return 'image';
-			case 'video':
-				return 'video';
-			case 'audio':
-				return 'music';
-			case 'document':
-				return 'file-text';
-			default:
-				return 'file';
+			case 'image': return 'image';
+			case 'video': return 'video';
+			case 'audio': return 'music';
+			case 'document': return 'file-text';
+			default: return 'file';
 		}
 	}
 }
-
-// 已移除 formatFileSize 方法，使用 utils/format.ts 中的实现

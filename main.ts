@@ -2,6 +2,7 @@ import { Plugin, Editor, TFile, TFolder, TAbstractFile, MarkdownView, Notice, Me
 import { ImageLibraryView, VIEW_TYPE_IMAGE_LIBRARY } from './view/ImageLibraryView';
 import { UnreferencedImagesView, VIEW_TYPE_UNREFERENCED_IMAGES } from './view/UnreferencedImagesView';
 import { TrashManagementView, VIEW_TYPE_TRASH_MANAGEMENT } from './view/TrashManagementView';
+import { DuplicateDetectionView, VIEW_TYPE_DUPLICATE_DETECTION } from './view/DuplicateDetectionView';
 import { MediaPreviewModal } from './view/MediaPreviewModal';
 import { ImageManagerSettings, DEFAULT_SETTINGS, SettingsTab } from './settings';
 import { ImageAlignment, AlignmentType } from './utils/imageAlignment';
@@ -10,6 +11,8 @@ import { t as translate, getSystemLanguage, Language, Translations } from './uti
 import { getEnabledExtensions, isMediaFile } from './utils/mediaTypes';
 import { isPathSafe } from './utils/security';
 import { getFileNameFromPath, getParentPath, normalizeVaultPath, safeDecodeURIComponent } from './utils/path';
+import { ThumbnailCache } from './utils/thumbnailCache';
+import { MediaFileIndex } from './utils/fileWatcher';
 
 export default class ImageManagerPlugin extends Plugin {
 	settings: ImageManagerSettings = DEFAULT_SETTINGS;
@@ -19,6 +22,12 @@ export default class ImageManagerPlugin extends Plugin {
 	private cacheTimestamp: number = 0;
 	private static readonly CACHE_DURATION = 5 * 60 * 1000; // 缓存5分钟
 	private refreshViewsTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// 性能：缩略图缓存 + 增量文件索引
+	thumbnailCache: ThumbnailCache = new ThumbnailCache();
+	fileIndex: MediaFileIndex = new MediaFileIndex(null as any);
+	private indexedExtensionsKey: string = '';
+	private indexedTrashFolder: string = '';
 
 	/**
 	 * 获取当前语言设置
@@ -41,6 +50,9 @@ export default class ImageManagerPlugin extends Plugin {
 		await this.loadSettings();
 		await this.migrateLegacyTrashFolder();
 
+		// 初始化性能基础设施
+		await this.initPerformanceInfra();
+
 		// 加载样式
 		this.addStyle();
 
@@ -52,6 +64,9 @@ export default class ImageManagerPlugin extends Plugin {
 
 		// 注册隔离文件夹管理视图
 		this.registerView(VIEW_TYPE_TRASH_MANAGEMENT, (leaf) => new TrashManagementView(leaf, this));
+
+		// 注册重复检测视图
+		this.registerView(VIEW_TYPE_DUPLICATE_DETECTION, (leaf) => new DuplicateDetectionView(leaf, this));
 
 		// 注册图片对齐 PostProcessor
 		const alignmentProcessor = new AlignmentPostProcessor(this);
@@ -83,6 +98,26 @@ export default class ImageManagerPlugin extends Plugin {
 			checkCallback: (checking: boolean) => {
 				if (checking) return true;
 				this.refreshCache();
+			}
+		});
+
+		// 重复检测命令
+		this.addCommand({
+			id: 'open-duplicate-detection',
+			name: this.t('cmdDuplicateDetection'),
+			checkCallback: (checking: boolean) => {
+				if (checking) return true;
+				this.openDuplicateDetection();
+			}
+		});
+
+		// 隔离管理命令
+		this.addCommand({
+			id: 'open-trash-management',
+			name: this.t('cmdTrashManagement'),
+			checkCallback: (checking: boolean) => {
+				if (checking) return true;
+				this.openTrashManagement();
 			}
 		});
 
@@ -271,17 +306,58 @@ export default class ImageManagerPlugin extends Plugin {
 	 * 注册 Vault 事件监听
 	 */
 	private registerVaultEventListeners() {
-		const onFileChanged = (file: TAbstractFile) => {
+		// 委托给 MediaFileIndex 处理增量索引更新
+		this.registerEvent(this.app.vault.on('create', (file: TAbstractFile) => {
+			this.fileIndex.onFileCreated(file);
 			this.handleVaultFileChange(file);
-		};
-		const onFileRenamed = (file: TAbstractFile, oldPath: string) => {
+		}));
+		this.registerEvent(this.app.vault.on('delete', (file: TAbstractFile) => {
+			this.fileIndex.onFileDeleted(file);
+			this.handleVaultFileChange(file);
+		}));
+		this.registerEvent(this.app.vault.on('modify', (file: TAbstractFile) => {
+			this.fileIndex.onFileModified(file);
+			this.handleVaultFileChange(file);
+		}));
+		this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile, oldPath: string) => {
+			this.fileIndex.onFileRenamed(file, oldPath);
 			this.handleVaultFileChange(file, oldPath);
-		};
+		}));
+	}
 
-		this.registerEvent(this.app.vault.on('create', onFileChanged));
-		this.registerEvent(this.app.vault.on('delete', onFileChanged));
-		this.registerEvent(this.app.vault.on('modify', onFileChanged));
-		this.registerEvent(this.app.vault.on('rename', onFileRenamed));
+	/**
+	 * 初始化性能基础设施
+	 */
+	private async initPerformanceInfra(): Promise<void> {
+		// 打开缩略图缓存
+		await this.thumbnailCache.open();
+
+		// 初始化文件索引
+		this.fileIndex = new MediaFileIndex(this.app.vault, this.thumbnailCache);
+		await this.syncPerformanceInfraSettings(true);
+	}
+
+	/**
+	 * 同步性能基础设施配置
+	 * 当媒体类型或隔离目录发生变化时，需要重建文件索引
+	 */
+	private async syncPerformanceInfraSettings(forceFullScan: boolean = false): Promise<void> {
+		const enabledExtensions = getEnabledExtensions(this.settings);
+		const trashFolder = normalizeVaultPath(this.settings.trashFolder) || DEFAULT_SETTINGS.trashFolder;
+		const extensionsKey = [...enabledExtensions].sort().join('|');
+		const needsRescan = forceFullScan
+			|| !this.fileIndex.isInitialized
+			|| this.indexedExtensionsKey !== extensionsKey
+			|| this.indexedTrashFolder !== trashFolder;
+
+		this.fileIndex.setEnabledExtensions(enabledExtensions);
+		this.fileIndex.setTrashFolder(trashFolder);
+		this.indexedExtensionsKey = extensionsKey;
+		this.indexedTrashFolder = trashFolder;
+
+		if (needsRescan) {
+			await this.fileIndex.fullScan();
+		}
 	}
 
 	/**
@@ -405,9 +481,30 @@ export default class ImageManagerPlugin extends Plugin {
 			clearTimeout(this.refreshViewsTimer);
 			this.refreshViewsTimer = null;
 		}
+		// 关闭缩略图缓存
+		this.thumbnailCache.close();
+		this.fileIndex.clear();
+
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_IMAGE_LIBRARY);
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_UNREFERENCED_IMAGES);
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_TRASH_MANAGEMENT);
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_DUPLICATE_DETECTION);
+	}
+
+	/**
+	 * 打开重复检测视图
+	 */
+	async openDuplicateDetection() {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE_DUPLICATE_DETECTION)[0];
+		if (!leaf) {
+			leaf = workspace.getLeaf('tab');
+			await leaf.setViewState({
+				type: VIEW_TYPE_DUPLICATE_DETECTION,
+				active: true
+			});
+		}
+		workspace.revealLeaf(leaf);
 	}
 
 	// 加载样式文件
@@ -1232,7 +1329,18 @@ export default class ImageManagerPlugin extends Plugin {
 				enableAudio: toBool(merged.enableAudio, DEFAULT_SETTINGS.enableAudio),
 				enablePDF: toBool(merged.enablePDF, DEFAULT_SETTINGS.enablePDF),
 				enablePreviewModal: toBool(merged.enablePreviewModal, DEFAULT_SETTINGS.enablePreviewModal),
-				enableKeyboardNav: toBool(merged.enableKeyboardNav, DEFAULT_SETTINGS.enableKeyboardNav)
+				enableKeyboardNav: toBool(merged.enableKeyboardNav, DEFAULT_SETTINGS.enableKeyboardNav),
+				// 新增设置字段
+				safeScanEnabled: toBool(merged.safeScanEnabled, DEFAULT_SETTINGS.safeScanEnabled),
+				safeScanUnrefDays: Math.max(1, Math.min(365, Number(merged.safeScanUnrefDays) || DEFAULT_SETTINGS.safeScanUnrefDays)),
+				safeScanMinSize: Math.max(0, Number(merged.safeScanMinSize) || DEFAULT_SETTINGS.safeScanMinSize),
+				duplicateThreshold: Math.max(50, Math.min(100, Number(merged.duplicateThreshold) || DEFAULT_SETTINGS.duplicateThreshold)),
+				organizeRules: Array.isArray(merged.organizeRules) ? merged.organizeRules : DEFAULT_SETTINGS.organizeRules,
+				defaultProcessQuality: Math.max(1, Math.min(100, Number(merged.defaultProcessQuality) || DEFAULT_SETTINGS.defaultProcessQuality)),
+				defaultProcessFormat: ['webp', 'jpeg', 'png'].includes(String(merged.defaultProcessFormat))
+					? merged.defaultProcessFormat as 'webp' | 'jpeg' | 'png'
+					: DEFAULT_SETTINGS.defaultProcessFormat,
+				watermarkText: typeof merged.watermarkText === 'string' ? merged.watermarkText : DEFAULT_SETTINGS.watermarkText
 			};
 		} catch (error) {
 			console.error('加载设置失败，使用默认设置:', error);
@@ -1244,6 +1352,7 @@ export default class ImageManagerPlugin extends Plugin {
 		this.settings.imageFolder = normalizeVaultPath(this.settings.imageFolder);
 		this.settings.trashFolder = normalizeVaultPath(this.settings.trashFolder) || DEFAULT_SETTINGS.trashFolder;
 		await this.saveData(this.settings);
+		await this.syncPerformanceInfraSettings();
 		this.clearCache();
 		this.scheduleRefreshOpenViews(150);
 	}
@@ -1614,7 +1723,7 @@ export default class ImageManagerPlugin extends Plugin {
 	/**
 	 * 确保目录存在（支持递归创建）
 	 */
-	private async ensureFolderExists(path: string): Promise<boolean> {
+	async ensureFolderExists(path: string): Promise<boolean> {
 		const normalizedPath = normalizeVaultPath(path);
 
 		if (!normalizedPath) {

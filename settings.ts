@@ -25,6 +25,26 @@ export interface ImageManagerSettings {
 	enableKeyboardNav: boolean;
 	// 国际化设置
 	language: 'zh' | 'en' | 'system';
+	// Quarantine 安全扫描
+	safeScanEnabled: boolean;
+	safeScanUnrefDays: number;
+	safeScanMinSize: number; // bytes
+	// 去重设置
+	duplicateThreshold: number;
+	// 自动整理规则
+	organizeRules: OrganizeRule[];
+	// 媒体处理默认参数
+	defaultProcessQuality: number;
+	defaultProcessFormat: 'webp' | 'jpeg' | 'png';
+	watermarkText: string;
+}
+
+export interface OrganizeRule {
+	name: string;
+	enabled: boolean;
+	pathTemplate: string;
+	renameTemplate: string;
+	matchExtensions: string;
 }
 
 export const DEFAULT_SETTINGS: ImageManagerSettings = {
@@ -48,7 +68,27 @@ export const DEFAULT_SETTINGS: ImageManagerSettings = {
 	enablePreviewModal: true,
 	enableKeyboardNav: true,
 	// 国际化设置
-	language: 'system'
+	language: 'system',
+	// Quarantine 安全扫描
+	safeScanEnabled: false,
+	safeScanUnrefDays: 30,
+	safeScanMinSize: 5 * 1024 * 1024, // 5MB
+	// 去重
+	duplicateThreshold: 90,
+	// 自动整理
+	organizeRules: [
+		{
+			name: 'Default',
+			enabled: false,
+			pathTemplate: 'Media/{year}/{month}',
+			renameTemplate: '{name}',
+			matchExtensions: 'jpg,jpeg,png,gif,webp'
+		}
+	],
+	// 媒体处理
+	defaultProcessQuality: 80,
+	defaultProcessFormat: 'webp',
+	watermarkText: ''
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -212,6 +252,70 @@ export class SettingsTab extends PluginSettingTab {
 					const days = parseInt(value, 10);
 					if (!isNaN(days) && days > 0) {
 						this.plugin.settings.trashCleanupDays = days;
+						await this.plugin.saveSettings();
+					}
+				}));
+
+		// 分隔线
+		containerEl.createEl('hr', { cls: 'settings-divider' });
+
+		// 安全扫描设置
+		containerEl.createEl('h3', { text: this.t('safeScanSettings') });
+
+		new Setting(containerEl)
+			.setName(this.t('safeScan'))
+			.setDesc(this.t('safeScanEnabledDesc'))
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.safeScanEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.safeScanEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName(this.t('safeScanUnrefDays'))
+			.setDesc(this.t('safeScanUnrefDaysDesc'))
+			.addText(text => text
+				.setPlaceholder('30')
+				.setValue(String(this.plugin.settings.safeScanUnrefDays))
+				.onChange(async (value) => {
+					const days = parseInt(value, 10);
+					if (!isNaN(days) && days > 0) {
+						this.plugin.settings.safeScanUnrefDays = days;
+						await this.plugin.saveSettings();
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName(this.t('safeScanMinSize'))
+			.setDesc(this.t('safeScanMinSizeDesc'))
+			.addText(text => text
+				.setPlaceholder('5')
+				.setValue(String(Number((this.plugin.settings.safeScanMinSize / (1024 * 1024)).toFixed(2))))
+				.onChange(async (value) => {
+					const sizeMb = parseFloat(value);
+					if (!isNaN(sizeMb) && sizeMb >= 0) {
+						this.plugin.settings.safeScanMinSize = Math.round(sizeMb * 1024 * 1024);
+						await this.plugin.saveSettings();
+					}
+				}));
+
+		// 分隔线
+		containerEl.createEl('hr', { cls: 'settings-divider' });
+
+		// 重复检测设置
+		containerEl.createEl('h3', { text: this.t('duplicateDetectionSettings') });
+
+		new Setting(containerEl)
+			.setName(this.t('duplicateThresholdSetting'))
+			.setDesc(this.t('duplicateThresholdDesc'))
+			.addText(text => text
+				.setPlaceholder('90')
+				.setValue(String(this.plugin.settings.duplicateThreshold))
+				.onChange(async (value) => {
+					const threshold = parseInt(value, 10);
+					if (!isNaN(threshold) && threshold >= 50 && threshold <= 100) {
+						this.plugin.settings.duplicateThreshold = threshold;
 						await this.plugin.saveSettings();
 					}
 				}));

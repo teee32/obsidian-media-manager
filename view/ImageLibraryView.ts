@@ -3,6 +3,7 @@ import ImageManagerPlugin from '../main';
 import { formatFileSize, debounce } from '../utils/format';
 import { normalizeVaultPath } from '../utils/path';
 import { getMediaType } from '../utils/mediaTypes';
+import { generateThumbnail } from '../utils/thumbnailCache';
 
 export const VIEW_TYPE_IMAGE_LIBRARY = 'image-library-view';
 
@@ -78,8 +79,16 @@ export class ImageLibraryView extends ItemView {
 		const size = sizeMap[this.plugin.settings.thumbnailSize] || 'medium';
 		this.contentEl.empty();
 
-		// 先获取所有图片数据
-		const imageFiles = await this.plugin.getAllImageFiles();
+		// 先获取所有图片数据：优先使用文件索引（增量扫描），回退到全量遍历
+		let imageFiles: TFile[];
+		if (this.plugin.fileIndex.isInitialized) {
+			const entries = this.plugin.fileIndex.getFiles();
+			imageFiles = entries
+				.map(e => this.app.vault.getAbstractFileByPath(e.path))
+				.filter((f): f is TFile => f instanceof TFile);
+		} else {
+			imageFiles = await this.plugin.getAllImageFiles();
+		}
 
 		// 过滤图片文件夹（如果设置了）
 		let filteredImages: TFile[];
@@ -458,20 +467,8 @@ export class ImageLibraryView extends ItemView {
 		const src = this.app.vault.getResourcePath(file);
 
 		if (mediaType === 'image') {
-			const img = container.createEl('img', {
-				attr: {
-					src,
-					alt: displayName
-				}
-			});
-
-			img.addEventListener('error', () => {
-				container.empty();
-				container.createDiv({
-					cls: 'image-error',
-					text: this.plugin.t('imageLoadError')
-				});
-			});
+			// 优先从 IndexedDB 缓存加载缩略图
+			this.renderCachedThumbnail(container, file, src, displayName);
 			return;
 		}
 
@@ -501,6 +498,56 @@ export class ImageLibraryView extends ItemView {
 		}
 
 		this.renderThumbnailFallback(container, 'file', 'FILE');
+	}
+
+	/**
+	 * 使用 IndexedDB 缓存的缩略图渲染图片
+	 * 缓存命中时直接用 Blob URL，否则使用原始src并异步生成缓存
+	 */
+	private renderCachedThumbnail(container: HTMLElement, file: TFile, src: string, displayName: string) {
+		const cache = this.plugin.thumbnailCache;
+		const mtime = file.stat.mtime;
+
+		// 创建 img 元素（先用占位）
+		const img = container.createEl('img', {
+			attr: { alt: displayName }
+		});
+		img.style.opacity = '0';
+		img.style.transition = 'opacity 0.2s';
+
+		img.addEventListener('error', () => {
+			container.empty();
+			container.createDiv({
+				cls: 'image-error',
+				text: this.plugin.t('imageLoadError')
+			});
+		});
+
+		// SVG 不需要缓存缩略图——直接使用原始路径
+		if (file.extension.toLowerCase() === 'svg') {
+			img.src = src;
+			img.style.opacity = '1';
+			return;
+		}
+
+		// 尝试从缓存获取
+		void cache.get(file.path, mtime).then(cachedUrl => {
+			if (cachedUrl) {
+				img.src = cachedUrl;
+				img.style.opacity = '1';
+			} else {
+				// 缓存未命中：先显示原图
+				img.src = src;
+				img.style.opacity = '1';
+
+				// 异步生成缩略图并存入缓存
+				void generateThumbnail(src, 300).then(({ blob, width, height }) => {
+					return cache.put(file.path, mtime, blob, width, height);
+				}).catch(() => {
+					// 缩略图生成失败不影响显示
+				});
+			}
+		});
 	}
 
 	renderImageItem(container: HTMLElement, image: ImageItem) {
