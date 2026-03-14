@@ -90,8 +90,7 @@ export class TrashManagementView extends ItemView {
 				return;
 			}
 
-			// 获取引用集合
-			const referencedImages = await this.plugin.getReferencedImages();
+			const refCountMap = this.buildRefCountMap();
 
 			this.trashItems = [];
 			for (const file of trashFolder.children) {
@@ -99,9 +98,9 @@ export class TrashManagementView extends ItemView {
 					const originalPath = this.extractOriginalPath(file.name);
 					const displayName = originalPath ? getFileNameFromPath(originalPath) || file.name : file.name;
 
-					// 计算引用次数
+					// 从预建 Map 中查找引用次数 O(1)
 					const refCount = originalPath
-						? this.countReferences(originalPath, referencedImages)
+						? this.lookupRefCount(originalPath, refCountMap)
 						: 0;
 
 					this.trashItems.push({
@@ -132,47 +131,45 @@ export class TrashManagementView extends ItemView {
 	}
 
 	/**
-	 * 计算文件在所有笔记中的引用次数
+	 * 一次性遍历所有笔记，构建引用计数 Map
+	 * key = 归一化文件名 (lowercase), value = 被引用次数
+	 * O(笔记数 × 平均 embed 数)，只执行一次
 	 */
-	private countReferences(originalPath: string, referencedImages: Set<string>): number {
-		const normalizedOriginalPath = normalizeVaultPath(originalPath).toLowerCase();
-		const fileName = (getFileNameFromPath(normalizedOriginalPath) || normalizedOriginalPath).toLowerCase();
+	private buildRefCountMap(): Map<string, number> {
+		const countMap = new Map<string, number>();
 
-		if (!referencedImages.has(normalizedOriginalPath) && !referencedImages.has(fileName)) {
-			return 0;
-		}
-
-		let count = 0;
-
-		// 检查各种引用格式
 		const markdownFiles = this.app.vault.getMarkdownFiles();
 		for (const md of markdownFiles) {
 			const cache = this.app.metadataCache.getFileCache(md);
 			if (!cache) continue;
 
-			// 检查 links 和 embeds
-			const embeds = cache.embeds || [];
-			const links = cache.links || [];
+			const entries = [...(cache.embeds || []), ...(cache.links || [])];
+			for (const entry of entries) {
+				const linkPath = normalizeVaultPath(entry.link).toLowerCase();
+				const linkName = (getFileNameFromPath(linkPath) || linkPath).toLowerCase();
 
-			for (const embed of embeds) {
-				const linkPath = normalizeVaultPath(embed.link).toLowerCase();
-				const linkName = (getFileNameFromPath(linkPath) || linkPath).toLowerCase();
-				if (linkPath === normalizedOriginalPath || linkName === fileName ||
-					linkPath.endsWith('/' + fileName)) {
-					count++;
-				}
-			}
-			for (const link of links) {
-				const linkPath = normalizeVaultPath(link.link).toLowerCase();
-				const linkName = (getFileNameFromPath(linkPath) || linkPath).toLowerCase();
-				if (linkPath === normalizedOriginalPath || linkName === fileName ||
-					linkPath.endsWith('/' + fileName)) {
-					count++;
+				// 按完整路径和裸文件名分别累加
+				countMap.set(linkPath, (countMap.get(linkPath) || 0) + 1);
+				if (linkName !== linkPath) {
+					countMap.set(linkName, (countMap.get(linkName) || 0) + 1);
 				}
 			}
 		}
 
-		return count;
+		return countMap;
+	}
+
+	/**
+	 * 从预建 Map 中查询引用次数
+	 */
+	private lookupRefCount(originalPath: string, refCountMap: Map<string, number>): number {
+		const normalizedPath = normalizeVaultPath(originalPath).toLowerCase();
+		const fileName = (getFileNameFromPath(normalizedPath) || normalizedPath).toLowerCase();
+		const exactCount = refCountMap.get(normalizedPath) || 0;
+		const nameCount = refCountMap.get(fileName) || 0;
+
+		// 兼容裸文件名与完整路径两种写法，避免同一文件不同链接风格时被低估。
+		return Math.max(exactCount, nameCount);
 	}
 
 	/**
@@ -481,14 +478,14 @@ export class TrashManagementView extends ItemView {
 			const trashPath = normalizeVaultPath(this.plugin.settings.trashFolder) || '';
 			const candidates: TFile[] = [];
 
-				for (const file of allMedia) {
-					// 排除已在隔离区的文件
-					if (trashPath && file.path.startsWith(trashPath + '/')) continue;
+			for (const file of allMedia) {
+				// 排除已在隔离区的文件
+				if (trashPath && file.path.startsWith(trashPath + '/')) continue;
 
-					const normalizedPath = normalizeVaultPath(file.path).toLowerCase();
-					const normalizedName = file.name.toLowerCase();
-					const isReferenced = referencedImages.has(normalizedPath) ||
-						referencedImages.has(normalizedName);
+				const normalizedPath = normalizeVaultPath(file.path).toLowerCase();
+				const normalizedName = file.name.toLowerCase();
+				const isReferenced = referencedImages.has(normalizedPath) ||
+					referencedImages.has(normalizedName);
 
 				if (!isReferenced &&
 					file.stat.mtime < cutoffTime &&

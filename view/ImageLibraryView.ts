@@ -2,8 +2,11 @@ import { TFile, ItemView, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 
 import ImageManagerPlugin from '../main';
 import { formatFileSize, debounce } from '../utils/format';
 import { normalizeVaultPath } from '../utils/path';
-import { getMediaType } from '../utils/mediaTypes';
+import { getMediaType, getFileExtension } from '../utils/mediaTypes';
 import { generateThumbnail } from '../utils/thumbnailCache';
+import { findMatchingRule, computeTarget, OrganizeContext } from '../utils/ruleEngine';
+import { parseExif } from '../utils/exifReader';
+import { processImage, getFormatExtension } from '../utils/mediaProcessor';
 
 export const VIEW_TYPE_IMAGE_LIBRARY = 'image-library-view';
 
@@ -30,6 +33,11 @@ export class ImageLibraryView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, plugin: ImageManagerPlugin) {
 		super(leaf);
 		this.plugin = plugin;
+	}
+
+	private isProcessableImage(file: TFile): boolean {
+		const ext = getFileExtension(file.name);
+		return ['.png', '.jpg', '.jpeg', '.webp', '.bmp'].includes(ext);
 	}
 
 	getViewType() {
@@ -255,6 +263,18 @@ export class ImageLibraryView extends ItemView {
 		const deleteSelectedBtn = toolbar.createEl('button', { cls: 'toolbar-button danger' });
 		setIcon(deleteSelectedBtn, 'trash-2');
 		deleteSelectedBtn.addEventListener('click', () => this.deleteSelected());
+
+		// 整理按钮
+		const organizeBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
+		setIcon(organizeBtn, 'folder-input');
+		organizeBtn.title = this.plugin.t('organizing');
+		organizeBtn.addEventListener('click', () => this.organizeSelected());
+
+		// 压缩按钮
+		const processBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
+		setIcon(processBtn, 'image-down');
+		processBtn.title = this.plugin.t('processing');
+		processBtn.addEventListener('click', () => this.processSelected());
 
 		const exitSelectionBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
 		setIcon(exitSelectionBtn, 'x');
@@ -652,7 +672,228 @@ export class ImageLibraryView extends ItemView {
 				});
 		});
 
+		// 仅图片显示处理选项
+		if (getMediaType(file.name) === 'image') {
+			menu.addSeparator();
+
+			menu.addItem((item: MenuItem) => {
+				item.setTitle(this.plugin.t('organizing'))
+					.setIcon('folder-input')
+					.onClick(() => this.organizeFile(file));
+			});
+
+			if (this.isProcessableImage(file)) {
+				menu.addItem((item: MenuItem) => {
+					item.setTitle(this.plugin.t('processing'))
+						.setIcon('image-down')
+						.onClick(() => this.processFile(file));
+				});
+			}
+		}
+
 		menu.showAtPosition({ x: event.clientX, y: event.clientY });
+	}
+
+	/**
+	 * 按规则整理单个文件
+	 */
+	private async organizeFile(file: TFile) {
+		const rules = this.plugin.settings.organizeRules;
+		const rule = findMatchingRule(rules, file);
+		if (!rule) {
+			new Notice(this.plugin.t('noMatchingFiles'));
+			return;
+		}
+
+		const ctx = await this.buildOrganizeContext(file);
+		const target = computeTarget(rule, ctx);
+
+		if (target.newPath === file.path) return;
+
+		await this.plugin.ensureFolderExists(target.newPath.substring(0, target.newPath.lastIndexOf('/')));
+		await this.app.fileManager.renameFile(file, target.newPath);
+		new Notice(this.plugin.t('organizeComplete', { count: 1 }));
+	}
+
+	/**
+	 * 批量整理选中文件
+	 */
+	private async organizeSelected() {
+		if (this.selectedFiles.size === 0) return;
+
+		const rules = this.plugin.settings.organizeRules;
+		let organizedCount = 0;
+
+		for (const path of this.selectedFiles) {
+			const file = this.app.vault.getAbstractFileByPath(path);
+			if (!(file instanceof TFile)) continue;
+
+			const rule = findMatchingRule(rules, file);
+			if (!rule) continue;
+
+			const ctx = await this.buildOrganizeContext(file);
+			const target = computeTarget(rule, ctx);
+
+			if (target.newPath === file.path) continue;
+
+			try {
+				await this.plugin.ensureFolderExists(target.newPath.substring(0, target.newPath.lastIndexOf('/')));
+				await this.app.fileManager.renameFile(file, target.newPath);
+				organizedCount++;
+			} catch (error) {
+				console.warn(`整理文件失败: ${file.name}`, error);
+			}
+		}
+
+		new Notice(this.plugin.t('organizeComplete', { count: organizedCount }));
+		this.selectedFiles.clear();
+		this.isSelectionMode = false;
+		await this.refreshImages();
+	}
+
+	/**
+	 * 构建整理上下文（包含 EXIF 解析）
+	 */
+	private async buildOrganizeContext(file: TFile): Promise<OrganizeContext> {
+		const date = new Date(file.stat.mtime);
+		const ctx: OrganizeContext = { file, date };
+
+		// 尝试解析 EXIF（仅 JPEG）
+		const ext = file.extension.toLowerCase();
+		if (ext === 'jpg' || ext === 'jpeg') {
+			try {
+				const buffer = await this.app.vault.readBinary(file);
+				ctx.exif = parseExif(buffer);
+			} catch { /* EXIF 解析失败不影响整理 */ }
+		}
+
+		return ctx;
+	}
+
+	/**
+	 * Canvas 处理单个文件
+	 */
+	private async processFile(file: TFile) {
+		if (!this.isProcessableImage(file)) {
+			new Notice(this.plugin.t('unsupportedFileType'));
+			return;
+		}
+
+		const settings = this.plugin.settings;
+		const src = this.app.vault.getResourcePath(file);
+		const originalSize = file.stat.size;
+
+		try {
+			const result = await processImage(src, file.stat.size, {
+				quality: settings.defaultProcessQuality,
+				format: settings.defaultProcessFormat,
+				watermark: settings.watermarkText ? {
+					text: settings.watermarkText,
+					position: 'bottom-right',
+					opacity: 0.5
+				} : undefined
+			});
+
+			const newExt = getFormatExtension(result.format);
+			const baseName = file.name.replace(/\.[^.]+$/, '');
+			const newPath = file.parent
+				? `${file.parent.path}/${baseName}${newExt}`
+				: `${baseName}${newExt}`;
+			const arrayBuffer = await result.blob.arrayBuffer();
+			let targetFile: TFile = file;
+
+			if (newPath !== file.path) {
+				const existing = this.app.vault.getAbstractFileByPath(newPath);
+				if (existing && existing.path !== file.path) {
+					throw new Error(this.plugin.t('targetFileExists'));
+				}
+
+				await this.app.fileManager.renameFile(file, newPath);
+				const renamed = this.app.vault.getAbstractFileByPath(newPath);
+				if (!(renamed instanceof TFile)) {
+					throw new Error(this.plugin.t('error'));
+				}
+				targetFile = renamed;
+			}
+
+			await this.app.vault.modifyBinary(targetFile, arrayBuffer);
+
+			const saved = Math.max(0, originalSize - result.newSize);
+			new Notice(`✅ ${baseName}: ${formatFileSize(originalSize)} → ${formatFileSize(result.newSize)} (节省 ${formatFileSize(saved)})`);
+		} catch (error) {
+			console.error(`处理失败: ${file.name}`, error);
+			new Notice(this.plugin.t('error') + `: ${file.name}`);
+		}
+	}
+
+	/**
+	 * 批量 Canvas 处理选中文件
+	 */
+	private async processSelected() {
+		if (this.selectedFiles.size === 0) return;
+
+		const settings = this.plugin.settings;
+		let processed = 0;
+		let skipped = 0;
+		let totalSaved = 0;
+
+		for (const path of this.selectedFiles) {
+			const file = this.app.vault.getAbstractFileByPath(path);
+			if (!(file instanceof TFile)) continue;
+			if (!this.isProcessableImage(file)) {
+				skipped++;
+				continue;
+			}
+
+			try {
+				const src = this.app.vault.getResourcePath(file);
+				const originalSize = file.stat.size;
+				const result = await processImage(src, originalSize, {
+					quality: settings.defaultProcessQuality,
+					format: settings.defaultProcessFormat,
+					watermark: settings.watermarkText ? {
+						text: settings.watermarkText,
+						position: 'bottom-right',
+						opacity: 0.5
+					} : undefined
+				});
+
+				const newExt = getFormatExtension(result.format);
+				const baseName = file.name.replace(/\.[^.]+$/, '');
+				const newPath = file.parent
+					? `${file.parent.path}/${baseName}${newExt}`
+					: `${baseName}${newExt}`;
+				const arrayBuffer = await result.blob.arrayBuffer();
+				let targetFile: TFile = file;
+
+				if (newPath !== file.path) {
+					const existing = this.app.vault.getAbstractFileByPath(newPath);
+					if (existing && existing.path !== file.path) {
+						throw new Error(this.plugin.t('targetFileExists'));
+					}
+
+					await this.app.fileManager.renameFile(file, newPath);
+					const renamed = this.app.vault.getAbstractFileByPath(newPath);
+					if (!(renamed instanceof TFile)) {
+						throw new Error(this.plugin.t('error'));
+					}
+					targetFile = renamed;
+				}
+
+				await this.app.vault.modifyBinary(targetFile, arrayBuffer);
+
+				processed++;
+				totalSaved += Math.max(0, originalSize - result.newSize);
+			} catch (error) {
+				console.warn(`处理失败: ${path}`, error);
+			}
+		}
+
+		const suffix = skipped > 0 ? `，跳过 ${skipped} 个不支持的文件` : '';
+		new Notice(`✅ 处理完成: ${processed} 个文件，节省 ${formatFileSize(totalSaved)}${suffix}`);
+		this.selectedFiles.clear();
+		this.isSelectionMode = false;
+		await this.refreshImages();
 	}
 
 	// 已移除 formatFileSize 方法，使用 utils/format.ts 中的实现
