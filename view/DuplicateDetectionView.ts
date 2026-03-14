@@ -16,6 +16,7 @@ export class DuplicateDetectionView extends ItemView {
 	private duplicateGroups: DuplicateGroup[] = [];
 	private isScanning: boolean = false;
 	private scanProgress: { current: number; total: number } = { current: 0, total: 0 };
+	private lastProgressAt: number = 0;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ImageManagerPlugin) {
 		super(leaf);
@@ -40,6 +41,8 @@ export class DuplicateDetectionView extends ItemView {
 			console.error('DuplicateDetectionView: contentEl not ready');
 			return;
 		}
+		// Ensure styles exist even if external stylesheet was removed or not loaded.
+		this.ensureStyles();
 		// Reset scan state on reopen to avoid stale "isScanning" blocking the UI.
 		this.isScanning = false;
 		this.scanProgress = { current: 0, total: 0 };
@@ -56,6 +59,7 @@ export class DuplicateDetectionView extends ItemView {
 	 */
 	async renderView() {
 		if (!this.contentEl) return;
+		this.ensureStyles();
 		this.contentEl.empty();
 
 		this.renderHeader();
@@ -173,9 +177,18 @@ export class DuplicateDetectionView extends ItemView {
 	 * 开始扫描
 	 */
 	async startScan() {
-		if (this.isScanning) return;
+		if (this.isScanning) {
+			// If the previous scan appears stuck, allow a restart.
+			const now = Date.now();
+			if (this.lastProgressAt && now - this.lastProgressAt > 15000) {
+				this.isScanning = false;
+			} else {
+				return;
+			}
+		}
 		this.isScanning = true;
 		this.duplicateGroups = [];
+		this.lastProgressAt = Date.now();
 
 		try {
 			// 获取所有图片文件
@@ -195,6 +208,7 @@ export class DuplicateDetectionView extends ItemView {
 			}
 
 			this.scanProgress = { current: 0, total: imageFiles.length };
+			this.lastProgressAt = Date.now();
 			await this.renderView();
 
 			// 分批计算哈希
@@ -215,6 +229,7 @@ export class DuplicateDetectionView extends ItemView {
 				}));
 
 				this.scanProgress.current = Math.min(i + BATCH_SIZE, imageFiles.length);
+				this.lastProgressAt = Date.now();
 
 				// 更新进度 UI
 				const progressFill = this.contentEl.querySelector('.progress-fill') as HTMLElement;
@@ -255,6 +270,14 @@ export class DuplicateDetectionView extends ItemView {
 			this.isScanning = false;
 			await this.renderView();
 		}
+	}
+
+	private ensureStyles() {
+		if (document.getElementById('obsidian-media-toolkit-styles') ||
+			document.getElementById('image-manager-styles')) {
+			return;
+		}
+		this.plugin.addStyle();
 	}
 
 	/**
