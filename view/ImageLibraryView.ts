@@ -770,6 +770,71 @@ export class ImageLibraryView extends ItemView {
 		return ctx;
 	}
 
+	private getProcessSettings() {
+		const settings = this.plugin.settings;
+		return {
+			quality: settings.defaultProcessQuality,
+			format: settings.defaultProcessFormat,
+			watermark: settings.watermarkText ? {
+				text: settings.watermarkText,
+				position: 'bottom-right' as const,
+				opacity: 0.5
+			} : undefined
+		};
+	}
+
+	private async processAndReplaceFile(file: TFile): Promise<{
+		baseName: string;
+		originalSize: number;
+		newSize: number;
+	}> {
+		const src = this.app.vault.getResourcePath(file);
+		const originalSize = file.stat.size;
+		const result = await processImage(src, originalSize, this.getProcessSettings());
+		const newExt = getFormatExtension(result.format);
+		const baseName = file.name.replace(/\.[^.]+$/, '');
+		const newPath = file.parent
+			? `${file.parent.path}/${baseName}${newExt}`
+			: `${baseName}${newExt}`;
+		const arrayBuffer = await result.blob.arrayBuffer();
+
+		if (newPath === file.path) {
+			await this.app.vault.modifyBinary(file, arrayBuffer);
+			return {
+				baseName,
+				originalSize,
+				newSize: result.newSize
+			};
+		}
+
+		const existing = this.app.vault.getAbstractFileByPath(newPath);
+		if (existing && existing.path !== file.path) {
+			throw new Error(this.plugin.t('targetFileExists'));
+		}
+
+		const originalBuffer = await this.app.vault.readBinary(file);
+
+		// 先写入转换后的内容，避免 rename 期间出现扩展名和实际字节格式不一致。
+		await this.app.vault.modifyBinary(file, arrayBuffer);
+
+		try {
+			await this.app.fileManager.renameFile(file, newPath);
+		} catch (error) {
+			try {
+				await this.app.vault.modifyBinary(file, originalBuffer);
+			} catch (rollbackError) {
+				console.error(`回滚处理后的文件失败: ${file.name}`, rollbackError);
+			}
+			throw error;
+		}
+
+		return {
+			baseName,
+			originalSize,
+			newSize: result.newSize
+		};
+	}
+
 	/**
 	 * Canvas 处理单个文件
 	 */
@@ -779,47 +844,10 @@ export class ImageLibraryView extends ItemView {
 			return;
 		}
 
-		const settings = this.plugin.settings;
-		const src = this.app.vault.getResourcePath(file);
-		const originalSize = file.stat.size;
-
 		try {
-			const result = await processImage(src, file.stat.size, {
-				quality: settings.defaultProcessQuality,
-				format: settings.defaultProcessFormat,
-				watermark: settings.watermarkText ? {
-					text: settings.watermarkText,
-					position: 'bottom-right',
-					opacity: 0.5
-				} : undefined
-			});
-
-			const newExt = getFormatExtension(result.format);
-			const baseName = file.name.replace(/\.[^.]+$/, '');
-			const newPath = file.parent
-				? `${file.parent.path}/${baseName}${newExt}`
-				: `${baseName}${newExt}`;
-			const arrayBuffer = await result.blob.arrayBuffer();
-			let targetFile: TFile = file;
-
-			if (newPath !== file.path) {
-				const existing = this.app.vault.getAbstractFileByPath(newPath);
-				if (existing && existing.path !== file.path) {
-					throw new Error(this.plugin.t('targetFileExists'));
-				}
-
-				await this.app.fileManager.renameFile(file, newPath);
-				const renamed = this.app.vault.getAbstractFileByPath(newPath);
-				if (!(renamed instanceof TFile)) {
-					throw new Error(this.plugin.t('error'));
-				}
-				targetFile = renamed;
-			}
-
-			await this.app.vault.modifyBinary(targetFile, arrayBuffer);
-
-			const saved = Math.max(0, originalSize - result.newSize);
-			new Notice(`✅ ${baseName}: ${formatFileSize(originalSize)} → ${formatFileSize(result.newSize)} (节省 ${formatFileSize(saved)})`);
+			const { baseName, originalSize, newSize } = await this.processAndReplaceFile(file);
+			const saved = Math.max(0, originalSize - newSize);
+			new Notice(`✅ ${baseName}: ${formatFileSize(originalSize)} → ${formatFileSize(newSize)} (节省 ${formatFileSize(saved)})`);
 		} catch (error) {
 			console.error(`处理失败: ${file.name}`, error);
 			new Notice(this.plugin.t('error') + `: ${file.name}`);
@@ -832,7 +860,6 @@ export class ImageLibraryView extends ItemView {
 	private async processSelected() {
 		if (this.selectedFiles.size === 0) return;
 
-		const settings = this.plugin.settings;
 		let processed = 0;
 		let skipped = 0;
 		let totalSaved = 0;
@@ -846,44 +873,9 @@ export class ImageLibraryView extends ItemView {
 			}
 
 			try {
-				const src = this.app.vault.getResourcePath(file);
-				const originalSize = file.stat.size;
-				const result = await processImage(src, originalSize, {
-					quality: settings.defaultProcessQuality,
-					format: settings.defaultProcessFormat,
-					watermark: settings.watermarkText ? {
-						text: settings.watermarkText,
-						position: 'bottom-right',
-						opacity: 0.5
-					} : undefined
-				});
-
-				const newExt = getFormatExtension(result.format);
-				const baseName = file.name.replace(/\.[^.]+$/, '');
-				const newPath = file.parent
-					? `${file.parent.path}/${baseName}${newExt}`
-					: `${baseName}${newExt}`;
-				const arrayBuffer = await result.blob.arrayBuffer();
-				let targetFile: TFile = file;
-
-				if (newPath !== file.path) {
-					const existing = this.app.vault.getAbstractFileByPath(newPath);
-					if (existing && existing.path !== file.path) {
-						throw new Error(this.plugin.t('targetFileExists'));
-					}
-
-					await this.app.fileManager.renameFile(file, newPath);
-					const renamed = this.app.vault.getAbstractFileByPath(newPath);
-					if (!(renamed instanceof TFile)) {
-						throw new Error(this.plugin.t('error'));
-					}
-					targetFile = renamed;
-				}
-
-				await this.app.vault.modifyBinary(targetFile, arrayBuffer);
-
+				const { originalSize, newSize } = await this.processAndReplaceFile(file);
 				processed++;
-				totalSaved += Math.max(0, originalSize - result.newSize);
+				totalSaved += Math.max(0, originalSize - newSize);
 			} catch (error) {
 				console.warn(`处理失败: ${path}`, error);
 			}
