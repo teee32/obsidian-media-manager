@@ -118,6 +118,36 @@ Manage images, video, audio, and PDF files inside your Obsidian vault.
 2. 运行“图片居左/居中/居右对齐”命令。
 3. 插件会把语法写成 `![[image.png|left]]` 这类可直接渲染的格式。
 
+### 图标按钮速查
+
+这些名称对应 Obsidian 内置的 Lucide 图标；界面里很多地方只显示图标，不显示文字。
+
+#### 媒体库与多选工具栏
+
+| 图标 | 位置 | 作用 |
+|------|------|------|
+| `search` | 单文件操作、未引用结果 | 在笔记中查找当前媒体的引用 |
+| `link` | 单文件操作 | 复制 Vault 内路径 |
+| `copy` | 单文件操作 | 复制 `[[file]]` 或 `![[file]]` 风格链接 |
+| `external-link` | 单文件操作 | 用系统方式打开原始文件 |
+| `check-square` / `square` | 多选或批量工具栏 | 全选 / 取消全选 |
+| `folder-input` | 右键菜单、多选工具栏 | 按整理规则移动或重命名媒体文件 |
+| `image-down` | 右键菜单、多选工具栏 | 对静态图片执行压缩或格式转换 |
+| `trash-2` | 多选工具栏、结果列表 | 将文件送入隔离区，或在隔离视图中执行永久删除 |
+| `x` | 多选工具栏、搜索框 | 退出多选模式或清空当前搜索 |
+
+#### 重复检测与隔离管理
+
+| 图标 | 位置 | 作用 |
+|------|------|------|
+| `search` | 重复检测头部 | 开始扫描当前 Vault 中的重复图片 |
+| `broom` | 重复检测结果栏 | 每组保留建议文件，其余重复项一键送入隔离区 |
+| `archive` | 重复检测单条结果 | 只隔离当前这一项重复副本 |
+| `refresh-cw` | 未引用、隔离管理头部 | 重新加载列表或重新扫描 |
+| `shield-check` | 隔离管理头部 | 运行安全扫描，优先筛出旧文件、大文件和未引用文件 |
+| `rotate-ccw` | 隔离管理 | 将隔离区文件恢复回原路径 |
+| `trash-2` | 隔离管理 | 永久删除隔离区文件 |
+
 ### 支持的媒体类型
 
 #### 浏览与预览
@@ -263,6 +293,36 @@ The older `===center=== ... ===` wrapper syntax is still supported for backward 
 1. Select an image link in a note.
 2. Run the left / center / right alignment command.
 3. The plugin rewrites the syntax to a renderable form such as `![[image.png|left]]`.
+
+### Icon Quick Reference
+
+These names map to Obsidian's built-in Lucide icons. In many places the UI shows the icon only, without a text label.
+
+#### Media Library and Multi-Select Toolbar
+
+| Icon | Where | Action |
+|------|-------|--------|
+| `search` | Per-file actions, unreferenced results | Find note references for the current media file |
+| `link` | Per-file actions | Copy the vault-relative path |
+| `copy` | Per-file actions | Copy a `[[file]]` or `![[file]]` style link |
+| `external-link` | Per-file actions | Open the original file with the system handler |
+| `check-square` / `square` | Multi-select and batch toolbars | Select all / clear selection |
+| `folder-input` | Context menu, multi-select toolbar | Move or rename files with organize rules |
+| `image-down` | Context menu, multi-select toolbar | Compress or convert static images |
+| `trash-2` | Batch toolbars, result lists | Move files into quarantine, or permanently delete inside quarantine |
+| `x` | Multi-select toolbar, search box | Exit multi-select mode or clear the current search |
+
+#### Duplicate Detection and Quarantine Management
+
+| Icon | Where | Action |
+|------|-------|--------|
+| `search` | Duplicate detection header | Start scanning duplicate images in the current vault |
+| `broom` | Duplicate detection results bar | Keep the suggested file in each group and quarantine the rest |
+| `archive` | Duplicate detection item row | Quarantine only the current duplicate copy |
+| `refresh-cw` | Unreferenced and quarantine headers | Reload the list or rerun a scan |
+| `shield-check` | Quarantine header | Run the safe scan to surface older, larger, and unreferenced files first |
+| `rotate-ccw` | Quarantine actions | Restore a quarantined file back to its original path |
+| `trash-2` | Quarantine actions | Permanently delete a quarantined file |
 
 ### Supported Media Types
 

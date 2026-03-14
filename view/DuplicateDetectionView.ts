@@ -75,7 +75,6 @@ export class DuplicateDetectionView extends ItemView {
 				cls: 'duplicate-empty-text',
 				text: this.plugin.t('noDuplicatesFound')
 			});
-			this.renderStartScanButton(emptyState, 'duplicate-empty-action');
 			return;
 		}
 
