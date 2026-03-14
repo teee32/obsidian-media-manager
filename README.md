@@ -1,73 +1,65 @@
 # Obsidian Media Toolkit
 
-[English](#english) | [中文](#中文)
+Manage images, video, audio, and PDF files inside your Obsidian vault.
 
----
+## 中文
 
-## 简体中文
+`Obsidian Media Toolkit` 是一个面向真实笔记工作流的媒体管理插件，覆盖媒体浏览、未引用清理、重复检测、隔离管理和图片对齐。
 
-一个功能强大的 Obsidian 媒体管理插件，帮助你更好地管理和组织笔记中的媒体文件。
+### 功能概览
 
-### 功能特性
-
-#### 媒体库视图
-- 以网格视图的方式浏览 Vault 中所有媒体文件
-- 支持图片、视频、音频、PDF 文件
-- 缩略图预览
-- 搜索过滤功能
-- 分页显示
-- 多选和批量操作
-- 点击预览
-
-![Unreferenced Media](./assets/unreferenced-media.png)
-
-#### 未引用媒体检测
-- 自动检测 Vault 中未被任何笔记引用的孤立媒体文件
-- 安全删除（先移入隔离文件夹）
-- 支持批量删除
+#### 媒体库
+- 网格浏览 Vault 中的图片、视频、音频和 PDF
+- 搜索、排序、分页、多选、复制路径/链接、在笔记中查找
+- 缩略图缓存和预览弹窗，减少重复打开时的等待
 
 ![Media Library](./assets/media-library.png)
 
+#### 静态图片处理
+- 在媒体库中直接处理 PNG / JPG / JPEG / WEBP / BMP
+- 支持单文件和批量处理
+- 支持格式转换和压缩
+- 跨扩展名转换后自动保持笔记中的链接可用
+- GIF 和 SVG 不显示破坏性处理入口
+
+#### 未引用媒体和重复检测
+- 扫描未被任何笔记引用的媒体文件
+- 使用感知哈希检测像素级重复图片
+- 支持将未引用文件或重复文件移动到隔离区，而不是直接删除
+
+![Unreferenced Media](./assets/unreferenced-media.png)
+
+#### 隔离区管理
+- 删除操作优先进入隔离区
+- 仪表盘显示文件数、总大小、类型分布和未引用率
+- 支持引用计数、安全扫描、批量恢复和批量彻底删除
+
 #### 图片对齐
-支持使用简洁的扩展链接语法对图片对齐：
+支持扩展 Wiki 链接语法：
 
 ```markdown
-// 居中对齐
 ![[image.png|center]]
-
-// 居左对齐
 ![[photo.jpg|left]]
-
-// 居右对齐
 ![[screenshot.png|right]]
-
-// 也可以设置宽度
-![[image.png|300]]
 ```
 
-> 提示：旧语法 `===center=== ... ===` 仍然兼容支持
+旧的 `===center=== ... ===` 包装语法仍然兼容。
 
-#### 隔离文件管理
-- 删除的文件先移入隔离文件夹
-- 支持恢复或彻底删除
-- 自动清理功能（可选）
+### 安装
 
-### 安装方法
-
-#### 使用 BRAT 安装（推荐）
-1. 安装 BRAT 插件（社区插件搜索 "BRAT"）
-2. 打开 BRAT 设置，点击 "Add Beta plugin"
-3. 输入 `https://github.com/teee32/obsidian-media-toolkit`
-4. 启用 "Media Toolkit" 插件
+#### BRAT 安装
+1. 安装 BRAT 插件。
+2. 在 BRAT 中选择 `Add Beta plugin`。
+3. 输入仓库地址 `https://github.com/teee32/obsidian-media-toolkit`。
+4. 在社区插件页面启用 `Media Toolkit`。
 
 #### 手动安装
-1. 克隆仓库或下载源码
-2. 进入项目目录，运行 `npm install` 和 `npm run build`
-3. 将 `dist` 目录下的文件复制到你的 Obsidian Vault 的 `.obsidian/plugins/obsidian-media-toolkit/` 目录下
-4. 重启 Obsidian
-5. 在第三方插件设置中启用插件
+1. 克隆仓库或下载源码。
+2. 在项目目录运行 `npm ci` 和 `npm run build`。
+3. 将 `main.js`、`manifest.json`、`styles.css` 复制到你的 Vault 中 `.obsidian/plugins/obsidian-media-toolkit/`。
+4. 重启 Obsidian 并启用插件。
 
-### 使用说明
+### 快速使用
 
 #### 快捷键
 
@@ -78,118 +70,107 @@
 | 打开隔离文件管理 | `Ctrl/Cmd + Shift + T` |
 
 #### 命令面板
+- `媒体库`
+- `查找未引用图片`
+- `刷新媒体引用缓存`
+- `打开重复检测`
+- `隔离文件管理`
+- `图片居左/居中/居右对齐`
 
-- `媒体库` - 打开媒体库视图
-- `查找未引用媒体` - 查找未被任何笔记引用的媒体文件
-- `隔离文件管理` - 管理已删除的文件
-- `图片居左/居中/居右对齐` - 对齐选中的图片
-
-#### 媒体库功能
-
-1. **搜索过滤**：在搜索框中输入文件名进行过滤
-2. **排序**：按名称、日期、大小排序
-3. **多选**：点击多选按钮进入选择模式
-4. **预览**：点击媒体文件打开预览窗口
-5. **右键菜单**：复制路径、复制链接、在笔记中查找等
-
-#### 未引用媒体
-
-1. 打开未引用媒体视图
-2. 查看所有未被引用的媒体文件
-3. 选择删除或批量删除
-4. 删除的文件会移入隔离文件夹
+#### 典型工作流
+1. 在媒体库里筛选文件，预览后复制路径、链接或定位引用笔记。
+2. 对静态图片执行单文件或批量处理，完成后继续使用原有笔记引用。
+3. 在重复检测视图扫描相似图片，确认后批量送入隔离区。
+4. 在隔离管理视图里查看引用计数、运行安全扫描，并决定恢复或永久删除。
 
 ### 支持的媒体类型
 
-- **图片**: png, jpg, jpeg, gif, webp, svg, bmp
-- **视频**: mp4, mov, avi, mkv, webm
-- **音频**: mp3, wav, ogg, m4a, flac
-- **文档**: pdf
+#### 浏览与预览
+- 图片: `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `bmp`
+- 视频: `mp4`, `mov`, `avi`, `mkv`, `webm`
+- 音频: `mp3`, `wav`, `ogg`, `m4a`, `flac`
+- 文档: `pdf`
 
-### 设置选项
+#### 静态图片处理
+- `png`, `jpg`, `jpeg`, `webp`, `bmp`
 
-- 媒体文件夹路径
-- 缩略图大小
-- 默认排序方式
-- 安全删除设置
-- 媒体类型过滤
-- 分页大小
+### 主要设置
+- 媒体文件夹范围
+- 缩略图大小、分页大小、排序方式
+- 图片/视频/音频/PDF 显示开关
+- 预览弹窗和键盘导航
+- 隔离区路径与自动清理
+- 安全扫描天数和最小文件大小
+- 重复检测相似度阈值
 
 ### 支持与反馈
 
-如果你遇到问题或有功能建议，请提交 Issue 到：
-https://github.com/teee32/obsidian-media-toolkit/issues
+Issue: https://github.com/teee32/obsidian-media-toolkit/issues
 
 ### 许可证
 
-MIT License - 详见 LICENSE 文件
+MIT License
 
 ---
 
 ## English
 
-A powerful Obsidian media management plugin that helps you better manage and organize media files in your notes.
+`Obsidian Media Toolkit` is a media-management plugin focused on real Obsidian workflows: browsing media, finding unreferenced files, detecting duplicates, managing quarantine, and aligning images in notes.
 
-### Features
+### Feature Overview
 
-#### Media Library View
-- Browse all media files in your Vault with grid view
-- Support for images, videos, audio, and PDF files
-- Thumbnail preview
-- Search and filter functionality
-- Pagination
-- Multi-select and batch operations
-- Click to preview
-
-![Unreferenced Media](./assets/unreferenced-media.png)
-
-#### Unreferenced Media Detection
-- Automatically detect orphaned media files not referenced by any notes
-- Safe deletion (moved to quarantine folder first)
-- Support for batch deletion
+#### Media Library
+- Browse images, video, audio, and PDF files in a grid view
+- Search, sort, paginate, multi-select, copy paths/links, and find references in notes
+- Cached thumbnails and preview modal for faster repeated access
 
 ![Media Library](./assets/media-library.png)
 
+#### Static Image Processing
+- Process PNG / JPG / JPEG / WEBP / BMP directly from the media library
+- Single-file and batch processing flows
+- Format conversion and compression
+- Links remain valid when the file extension changes
+- GIF and SVG intentionally do not expose destructive processing actions
+
+#### Unreferenced Media and Duplicate Detection
+- Scan for media files that are not referenced by any note
+- Detect pixel-level duplicate images with perceptual hashing
+- Move unreferenced or duplicate files into quarantine instead of deleting immediately
+
+![Unreferenced Media](./assets/unreferenced-media.png)
+
+#### Quarantine Management
+- Destructive actions go through a quarantine folder first
+- Dashboard for file count, total size, type distribution, and unreferenced rate
+- Reference counts, safe scan, batch restore, and batch permanent delete
+
 #### Image Alignment
-Align images using the extended link syntax:
+Supports extended wiki-link syntax:
 
 ```markdown
-// Center alignment
 ![[image.png|center]]
-
-// Left alignment
 ![[photo.jpg|left]]
-
-// Right alignment
 ![[screenshot.png|right]]
-
-// You can also set width
-![[image.png|300]]
 ```
 
-> Note: The old syntax `===center=== ... ===` is still supported for backward compatibility
-
-#### Quarantine File Management
-- Deleted files are moved to quarantine folder first
-- Support for restore or permanent deletion
-- Auto-cleanup feature (optional)
+The older `===center=== ... ===` wrapper syntax is still supported for backward compatibility.
 
 ### Installation
 
-#### Install with BRAT (Recommended)
-1. Install the BRAT plugin (search "BRAT" in community plugins)
-2. Open BRAT settings, click "Add Beta plugin"
-3. Enter `https://github.com/teee32/obsidian-media-toolkit`
-4. Enable the "Media Toolkit" plugin
+#### Install with BRAT
+1. Install the BRAT plugin.
+2. Choose `Add Beta plugin`.
+3. Enter `https://github.com/teee32/obsidian-media-toolkit`.
+4. Enable `Media Toolkit` in community plugins.
 
 #### Manual Installation
-1. Clone the repository or download the source code
-2. Run `npm install` and `npm run build` in the project directory
-3. Copy files from the `dist` folder to your Obsidian Vault's `.obsidian/plugins/obsidian-media-toolkit/` directory
-4. Restart Obsidian
-5. Enable the plugin in the third-party plugins settings
+1. Clone the repo or download the source.
+2. Run `npm ci` and `npm run build`.
+3. Copy `main.js`, `manifest.json`, and `styles.css` into `.obsidian/plugins/obsidian-media-toolkit/` inside your vault.
+4. Restart Obsidian and enable the plugin.
 
-### Usage
+### Quick Start
 
 #### Keyboard Shortcuts
 
@@ -200,48 +181,43 @@ Align images using the extended link syntax:
 | Open Quarantine Management | `Ctrl/Cmd + Shift + T` |
 
 #### Command Palette
+- `Media Library`
+- `Find Unreferenced Images`
+- `Refresh Media Reference Cache`
+- `Open Duplicate Detection`
+- `Trash Management`
+- `Align Image Left/Center/Right`
 
-- `Media Library` - Open media library view
-- `Find Unreferenced Media` - Find media files not referenced by any notes
-- `Quarantine Management` - Manage deleted files
-- `Align Image Left/Center/Right` - Align selected image
-
-#### Media Library Features
-
-1. **Search & Filter**: Enter filename in search box to filter
-2. **Sort**: Sort by name, date, or size
-3. **Multi-select**: Click multi-select button to enter selection mode
-4. **Preview**: Click media file to open preview window
-5. **Context Menu**: Copy path, copy link, find in notes, etc.
-
-#### Unreferenced Media
-
-1. Open unreferenced media view
-2. View all unreferenced media files
-3. Choose to delete or batch delete
-4. Deleted files will be moved to quarantine folder
+#### Typical Workflows
+1. Filter and preview files from the media library, then copy a path, copy a link, or find note references.
+2. Run single-file or batch processing for static images while keeping existing note links valid.
+3. Scan for visually duplicate images and quarantine redundant copies.
+4. Review reference counts in quarantine, run a safe scan, then restore or permanently delete files.
 
 ### Supported Media Types
 
-- **Images**: png, jpg, jpeg, gif, webp, svg, bmp
-- **Videos**: mp4, mov, avi, mkv, webm
-- **Audio**: mp3, wav, ogg, m4a, flac
-- **Documents**: pdf
+#### Browsing and Preview
+- Images: `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `bmp`
+- Videos: `mp4`, `mov`, `avi`, `mkv`, `webm`
+- Audio: `mp3`, `wav`, `ogg`, `m4a`, `flac`
+- Documents: `pdf`
 
-### Settings
+#### Static Image Processing
+- `png`, `jpg`, `jpeg`, `webp`, `bmp`
 
-- Media folder path
-- Thumbnail size
-- Default sort order
-- Safe deletion settings
-- Media type filter
-- Page size
+### Main Settings
+- Media folder scope
+- Thumbnail size, page size, and default sorting
+- Image / video / audio / PDF visibility toggles
+- Preview modal and keyboard navigation
+- Quarantine path and auto cleanup
+- Safe-scan age and minimum file size
+- Duplicate-detection similarity threshold
 
-### Support & Feedback
+### Support
 
-If you encounter issues or have feature suggestions, please submit an issue at:
-https://github.com/teee32/obsidian-media-toolkit/issues
+Issues: https://github.com/teee32/obsidian-media-toolkit/issues
 
 ### License
 
-MIT License - See LICENSE file for details
+MIT License
