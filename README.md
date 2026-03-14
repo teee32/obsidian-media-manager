@@ -79,6 +79,45 @@ Manage images, video, audio, and PDF files inside your Obsidian vault.
 3. 在重复检测视图扫描相似图片，确认后批量送入隔离区。
 4. 在隔离管理视图里查看引用计数、运行安全扫描，并决定恢复或永久删除。
 
+### 使用教程
+
+#### 1. 首次启用
+1. 安装并启用插件。
+2. 打开插件设置，先确认媒体类型开关、分页大小、缩略图大小和隔离区路径。
+3. 如果你只想管理某个附件目录，设置“媒体文件夹”范围。
+
+#### 2. 浏览和定位媒体
+1. 执行 `媒体库` 命令，或使用 `Ctrl/Cmd + Shift + M`。
+2. 在顶部搜索框输入文件名或路径片段。
+3. 点击文件打开预览，右键可复制路径、复制链接、在笔记中查找或打开原文件。
+
+#### 3. 处理静态图片
+1. 在媒体库中找到 PNG/JPG/JPEG/WEBP/BMP。
+2. 右键选择处理，或进入多选模式后批量处理。
+3. 处理完成后，插件会写入新内容；如果扩展名发生变化，笔记中的链接也会一起更新。
+4. GIF 和 SVG 不提供处理入口，这是刻意限制，避免破坏原始内容。
+
+#### 4. 查找未引用文件
+1. 执行 `查找未引用图片` 命令，或使用 `Ctrl/Cmd + Shift + U`。
+2. 扫描完成后检查结果列表。
+3. 将确认无用的文件送入隔离区，而不是直接永久删除。
+
+#### 5. 检测重复图片
+1. 执行 `打开重复检测`。
+2. 点击开始扫描，等待感知哈希计算完成。
+3. 按组检查重复图片，保留需要的文件，将冗余副本送入隔离区。
+
+#### 6. 管理隔离区
+1. 执行 `隔离文件管理`，或使用 `Ctrl/Cmd + Shift + T`。
+2. 查看引用计数、文件大小和类型分布。
+3. 需要时运行安全扫描，筛出长期未引用且体积较大的文件。
+4. 对误删文件执行恢复；确认无用后再永久删除。
+
+#### 7. 图片对齐
+1. 在笔记里选中图片链接。
+2. 运行“图片居左/居中/居右对齐”命令。
+3. 插件会把语法写成 `![[image.png|left]]` 这类可直接渲染的格式。
+
 ### 支持的媒体类型
 
 #### 浏览与预览
@@ -185,6 +224,45 @@ The older `===center=== ... ===` wrapper syntax is still supported for backward 
 2. Run single-file or batch processing for static images while keeping existing note links valid.
 3. Scan for visually duplicate images and quarantine redundant copies.
 4. Review reference counts in quarantine, run a safe scan, then restore or permanently delete files.
+
+### Tutorial
+
+#### 1. First-Time Setup
+1. Install and enable the plugin.
+2. Open plugin settings and review media-type toggles, page size, thumbnail size, and quarantine path.
+3. If you only want to manage one attachments folder, set the media-folder scope first.
+
+#### 2. Browse and Locate Media
+1. Run the `Media Library` command or press `Ctrl/Cmd + Shift + M`.
+2. Use the search box to filter by filename or path fragment.
+3. Click a file to preview it. Right-click for path copy, link copy, note references, or opening the original file.
+
+#### 3. Process Static Images
+1. Find a PNG/JPG/JPEG/WEBP/BMP file in the media library.
+2. Use the context menu to process one file, or switch to multi-select mode for batch processing.
+3. After processing, the plugin writes the converted content and keeps note links valid even when the extension changes.
+4. GIF and SVG intentionally do not expose processing actions.
+
+#### 4. Find Unreferenced Files
+1. Run `Find Unreferenced Images` or press `Ctrl/Cmd + Shift + U`.
+2. Review the scan results.
+3. Move confirmed unused files into quarantine instead of deleting them permanently right away.
+
+#### 5. Detect Duplicate Images
+1. Run `Open Duplicate Detection`.
+2. Start the scan and wait for perceptual-hash analysis to finish.
+3. Review each duplicate group, keep the file you want, and quarantine the redundant copies.
+
+#### 6. Manage Quarantine
+1. Run `Trash Management` or press `Ctrl/Cmd + Shift + T`.
+2. Review reference counts, file sizes, and type distribution.
+3. Use safe scan when you want to surface old, unreferenced, and larger files first.
+4. Restore files that were quarantined by mistake, and permanently delete only after review.
+
+#### 7. Align Images in Notes
+1. Select an image link in a note.
+2. Run the left / center / right alignment command.
+3. The plugin rewrites the syntax to a renderable form such as `![[image.png|left]]`.
 
 ### Supported Media Types
 
