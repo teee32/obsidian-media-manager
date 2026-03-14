@@ -54,7 +54,8 @@ export default class ImageManagerPlugin extends Plugin {
 		await this.initPerformanceInfra();
 
 		// 加载样式
-		this.addStyle();
+		this.removeManagedStyles();
+		await this.addStyle();
 
 		// 注册图片库视图
 		this.registerView(VIEW_TYPE_IMAGE_LIBRARY, (leaf) => new ImageLibraryView(leaf, this));
@@ -489,6 +490,12 @@ export default class ImageManagerPlugin extends Plugin {
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_UNREFERENCED_IMAGES);
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_TRASH_MANAGEMENT);
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_DUPLICATE_DETECTION);
+		this.removeManagedStyles();
+	}
+
+	private removeManagedStyles() {
+		document.getElementById('obsidian-media-toolkit-styles')?.remove();
+		document.getElementById('image-manager-styles')?.remove();
 	}
 
 	/**
@@ -509,25 +516,33 @@ export default class ImageManagerPlugin extends Plugin {
 
 	// 加载样式文件
 	// 注意：优先使用 styles.css 中的样式，addStyle 作为后备方案
-	addStyle() {
-		// 尝试从外部样式文件加载样式
-		this.loadExternalStyles();
-
-		// 同时添加内联样式作为后备，确保样式始终可用
-		this.addInlineStyle();
+	async addStyle() {
+		const loaded = await this.loadExternalStyles();
+		if (!loaded) {
+			this.addInlineStyle();
+		}
 	}
 
 	// 从外部样式文件加载
-	async loadExternalStyles() {
+	async loadExternalStyles(): Promise<boolean> {
 		// 检查是否已存在样式元素，避免重复添加
 		if (document.getElementById('obsidian-media-toolkit-styles')) {
-			return;
+			return true;
 		}
 
+		const stylePaths = [
+			this.manifest.dir ? `${normalizeVaultPath(this.manifest.dir)}/styles.css` : '',
+			`.obsidian/plugins/${this.manifest.id}/styles.css`,
+			'styles.css'
+		].filter((path, index, arr) => path && arr.indexOf(path) === index);
+
 		try {
-			const stylesFile = this.app.vault.getAbstractFileByPath('styles.css');
-			if (stylesFile && stylesFile instanceof TFile) {
-				const content = await this.app.vault.read(stylesFile);
+			for (const stylePath of stylePaths) {
+				if (!await this.app.vault.adapter.exists(stylePath)) {
+					continue;
+				}
+
+				const content = await this.app.vault.adapter.read(stylePath);
 				const sanitizedCss = content
 					// 阻止 expression() 等 JavaScript 执行
 					.replace(/expression\s*\(/gi, '/* blocked */(')
@@ -553,10 +568,13 @@ export default class ImageManagerPlugin extends Plugin {
 				styleEl.id = 'obsidian-media-toolkit-styles';
 				styleEl.textContent = sanitizedCss;
 				document.head.appendChild(styleEl);
+				return true;
 			}
 		} catch (error) {
 			console.log('加载外部样式文件失败，使用内联样式', error);
 		}
+
+		return false;
 	}
 
 	// 内联样式（后备方案）
@@ -1253,12 +1271,27 @@ export default class ImageManagerPlugin extends Plugin {
 }
 
 /* ===== 重复检测（后备样式） ===== */
-.scan-progress {
+.duplicate-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+	padding: 48px 24px;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.duplicate-empty-action {
+	margin-top: 8px;
+}
+
+.duplicate-scan-progress {
 	padding: 20px;
 	text-align: center;
 }
 
-.progress-bar {
+.duplicate-progress-bar {
 	height: 8px;
 	background: var(--background-modifier-border);
 	border-radius: 4px;
@@ -1266,14 +1299,14 @@ export default class ImageManagerPlugin extends Plugin {
 	margin: 16px 0;
 }
 
-.progress-fill {
+.duplicate-progress-fill {
 	height: 100%;
 	background: var(--interactive-accent);
 	border-radius: 4px;
 	transition: width 0.3s ease;
 }
 
-.progress-text {
+.duplicate-progress-text {
 	font-size: 0.9em;
 	color: var(--text-muted);
 }
@@ -1291,16 +1324,70 @@ export default class ImageManagerPlugin extends Plugin {
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.duplicate-header .header-actions {
+.duplicate-header-description {
+	margin-top: 4px;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.duplicate-header-actions {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 8px;
 	align-items: center;
 	margin-top: 8px;
 }
 
-.threshold-label {
+.duplicate-action-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	padding: 8px 12px;
+	border: none;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.duplicate-action-button:hover:not(:disabled) {
+	background: var(--background-tertiary);
+}
+
+.duplicate-action-button:disabled {
+	opacity: 0.6;
+	cursor: wait;
+}
+
+.duplicate-action-button-primary {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.duplicate-action-button-primary:hover:not(:disabled) {
+	background: var(--interactive-accent-hover);
+}
+
+.duplicate-threshold-label {
 	font-size: 0.85em;
 	color: var(--text-muted);
+}
+
+.duplicate-stats-bar {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 12px 16px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	margin-bottom: 16px;
+}
+
+.duplicate-stats-count {
+	font-weight: 600;
+	color: var(--text-warning);
 }
 
 .duplicate-group {
@@ -1308,6 +1395,110 @@ export default class ImageManagerPlugin extends Plugin {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
 	overflow: hidden;
+}
+
+.duplicate-group-header {
+	display: flex;
+	justify-content: space-between;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	font-weight: 600;
+}
+
+.duplicate-group-count {
+	color: var(--text-muted);
+	font-weight: normal;
+	font-size: 0.85em;
+}
+
+.duplicate-group-file {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	position: relative;
+}
+
+.duplicate-keep-suggestion {
+	background: rgba(0, 200, 83, 0.05);
+}
+
+.duplicate-file-suggestion {
+	background: rgba(255, 152, 0, 0.05);
+}
+
+.duplicate-file-thumbnail {
+	width: 60px;
+	height: 60px;
+	border-radius: 6px;
+	overflow: hidden;
+	flex-shrink: 0;
+}
+
+.duplicate-file-thumbnail img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.duplicate-file-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.duplicate-file-name,
+.duplicate-file-path {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.duplicate-file-name {
+	font-weight: 500;
+}
+
+.duplicate-file-path,
+.duplicate-file-meta {
+	font-size: 0.8em;
+	color: var(--text-muted);
+}
+
+.duplicate-similarity-badge {
+	display: inline-block;
+	padding: 1px 6px;
+	border-radius: 8px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-size: 0.75em;
+	font-weight: 600;
+}
+
+.duplicate-keep-badge {
+	position: absolute;
+	top: 8px;
+	right: 12px;
+	font-size: 0.85em;
+}
+
+.duplicate-quarantine-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 10px;
+	border-radius: 6px;
+	font-size: 0.8em;
+	cursor: pointer;
+	background: rgba(255, 152, 0, 0.15);
+	color: var(--color-orange, #ff9800);
+	border: none;
+	position: absolute;
+	top: 8px;
+	right: 12px;
+}
+
+.duplicate-quarantine-btn:hover {
+	background: rgba(255, 152, 0, 0.3);
 }
 
 /* ===== 响应式设计 ===== */

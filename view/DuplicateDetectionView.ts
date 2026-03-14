@@ -70,10 +70,12 @@ export class DuplicateDetectionView extends ItemView {
 		}
 
 		if (this.duplicateGroups.length === 0) {
-			this.contentEl.createDiv({
-				cls: 'empty-state',
+			const emptyState = this.contentEl.createDiv({ cls: 'duplicate-empty-state' });
+			emptyState.createDiv({
+				cls: 'duplicate-empty-text',
 				text: this.plugin.t('noDuplicatesFound')
 			});
+			this.renderStartScanButton(emptyState, 'duplicate-empty-action');
 			return;
 		}
 
@@ -81,17 +83,17 @@ export class DuplicateDetectionView extends ItemView {
 		const totalDuplicates = this.duplicateGroups.reduce(
 			(sum, g) => sum + g.files.length - 1, 0
 		);
-		const statsBar = this.contentEl.createDiv({ cls: 'stats-bar' });
+		const statsBar = this.contentEl.createDiv({ cls: 'duplicate-stats-bar' });
 		statsBar.createSpan({
 			text: this.plugin.t('duplicateGroupsFound', {
 				groups: this.duplicateGroups.length,
 				files: totalDuplicates
 			}),
-			cls: 'stats-count'
+			cls: 'duplicate-stats-count'
 		});
 
 		// 一键清理按钮
-		const cleanAllBtn = statsBar.createEl('button', { cls: 'action-button' });
+		const cleanAllBtn = statsBar.createEl('button', { cls: 'duplicate-action-button' });
 		setIcon(cleanAllBtn, 'broom');
 		cleanAllBtn.createSpan({ text: ` ${this.plugin.t('quarantineAllDuplicates')}` });
 		cleanAllBtn.addEventListener('click', () => this.quarantineAllDuplicates());
@@ -110,41 +112,50 @@ export class DuplicateDetectionView extends ItemView {
 		const header = this.contentEl.createDiv({ cls: 'duplicate-header' });
 		header.createEl('h2', { text: this.plugin.t('duplicateDetection') });
 
-		const desc = header.createDiv({ cls: 'header-description' });
+		const desc = header.createDiv({ cls: 'duplicate-header-description' });
 		desc.createSpan({ text: this.plugin.t('duplicateDetectionDesc') });
 
-		const actions = header.createDiv({ cls: 'header-actions' });
-
-		// 扫描按钮
-		const scanBtn = actions.createEl('button', { cls: 'action-button primary' });
-		setIcon(scanBtn, 'search');
-		scanBtn.createSpan({ text: ` ${this.plugin.t('startScan')}` });
-		scanBtn.addEventListener('click', () => this.startScan());
+		const actions = header.createDiv({ cls: 'duplicate-header-actions' });
+		this.renderStartScanButton(actions);
 
 		// 阈值显示
 		actions.createSpan({
-			cls: 'threshold-label',
+			cls: 'duplicate-threshold-label',
 			text: this.plugin.t('similarityThreshold', {
 				value: this.plugin.settings.duplicateThreshold
 			})
 		});
 	}
 
+	private renderStartScanButton(container: HTMLElement, extraClass?: string) {
+		const cls = ['duplicate-action-button', 'duplicate-action-button-primary'];
+		if (extraClass) cls.push(extraClass);
+
+		const scanBtn = container.createEl('button', { cls: cls.join(' ') });
+		setIcon(scanBtn, 'search');
+		scanBtn.createSpan({ text: ` ${this.plugin.t('startScan')}` });
+		scanBtn.disabled = this.isScanning;
+		scanBtn.addEventListener('click', () => {
+			void this.startScan();
+		});
+		return scanBtn;
+	}
+
 	/**
 	 * 渲染扫描进度
 	 */
 	private renderProgress() {
-		const progressContainer = this.contentEl.createDiv({ cls: 'scan-progress' });
+		const progressContainer = this.contentEl.createDiv({ cls: 'duplicate-scan-progress' });
 
-		const progressBar = progressContainer.createDiv({ cls: 'progress-bar' });
-		const progressFill = progressBar.createDiv({ cls: 'progress-fill' });
+		const progressBar = progressContainer.createDiv({ cls: 'duplicate-progress-bar' });
+		const progressFill = progressBar.createDiv({ cls: 'duplicate-progress-fill' });
 		const percent = this.scanProgress.total > 0
 			? Math.round((this.scanProgress.current / this.scanProgress.total) * 100)
 			: 0;
 		progressFill.style.width = `${percent}%`;
 
 		progressContainer.createDiv({
-			cls: 'progress-text',
+			cls: 'duplicate-progress-text',
 			text: this.plugin.t('scanProgress', {
 				current: this.scanProgress.current,
 				total: this.scanProgress.total
@@ -232,8 +243,8 @@ export class DuplicateDetectionView extends ItemView {
 				this.lastProgressAt = Date.now();
 
 				// 更新进度 UI
-				const progressFill = this.contentEl.querySelector('.progress-fill') as HTMLElement;
-				const progressText = this.contentEl.querySelector('.progress-text') as HTMLElement;
+				const progressFill = this.contentEl.querySelector('.duplicate-progress-fill') as HTMLElement;
+				const progressText = this.contentEl.querySelector('.duplicate-progress-text') as HTMLElement;
 				if (progressFill && progressText) {
 					const percent = Math.round((this.scanProgress.current / this.scanProgress.total) * 100);
 					progressFill.style.width = `${percent}%`;
@@ -277,7 +288,7 @@ export class DuplicateDetectionView extends ItemView {
 			document.getElementById('image-manager-styles')) {
 			return;
 		}
-		this.plugin.addStyle();
+		void this.plugin.addStyle();
 	}
 
 	/**
@@ -289,18 +300,18 @@ export class DuplicateDetectionView extends ItemView {
 		const groupEl = container.createDiv({ cls: 'duplicate-group' });
 
 		// 组标题
-		const groupHeader = groupEl.createDiv({ cls: 'group-header' });
+		const groupHeader = groupEl.createDiv({ cls: 'duplicate-group-header' });
 		groupHeader.createSpan({
-			cls: 'group-title',
+			cls: 'duplicate-group-title',
 			text: this.plugin.t('duplicateGroup', { index })
 		});
 		groupHeader.createSpan({
-			cls: 'group-count',
+			cls: 'duplicate-group-count',
 			text: `${group.files.length} ${this.plugin.t('files')}`
 		});
 
 		// 文件列表
-		const fileList = groupEl.createDiv({ cls: 'group-files' });
+		const fileList = groupEl.createDiv({ cls: 'duplicate-group-files' });
 
 		for (let i = 0; i < group.files.length; i++) {
 			const fileInfo = group.files[i];
@@ -308,11 +319,11 @@ export class DuplicateDetectionView extends ItemView {
 			if (!(file instanceof TFile)) continue;
 
 			const fileEl = fileList.createDiv({
-				cls: `group-file ${i === 0 ? 'keep-suggestion' : 'duplicate-suggestion'}`
+				cls: `duplicate-group-file ${i === 0 ? 'duplicate-keep-suggestion' : 'duplicate-file-suggestion'}`
 			});
 
 			// 缩略图
-			const thumb = fileEl.createDiv({ cls: 'file-thumbnail' });
+			const thumb = fileEl.createDiv({ cls: 'duplicate-file-thumbnail' });
 			const src = this.app.vault.getResourcePath(file);
 			const img = thumb.createEl('img', {
 				attr: { src, alt: file.name }
@@ -324,24 +335,24 @@ export class DuplicateDetectionView extends ItemView {
 			});
 
 			// 文件信息
-			const info = fileEl.createDiv({ cls: 'file-info' });
-			info.createDiv({ cls: 'file-name', text: file.name });
-			info.createDiv({ cls: 'file-path', text: file.path });
+			const info = fileEl.createDiv({ cls: 'duplicate-file-info' });
+			info.createDiv({ cls: 'duplicate-file-name', text: file.name });
+			info.createDiv({ cls: 'duplicate-file-path', text: file.path });
 
-			const meta = info.createDiv({ cls: 'file-meta' });
+			const meta = info.createDiv({ cls: 'duplicate-file-meta' });
 			meta.createSpan({ text: formatFileSize(file.stat.size) });
 			meta.createSpan({ text: ` | ${new Date(file.stat.mtime).toLocaleDateString()}` });
 			meta.createSpan({
-				cls: 'similarity-badge',
+				cls: 'duplicate-similarity-badge',
 				text: ` ${fileInfo.similarity}%`
 			});
 
 			// 标记
 			if (i === 0) {
-				fileEl.createSpan({ cls: 'keep-badge', text: this.plugin.t('suggestKeep') });
+				fileEl.createSpan({ cls: 'duplicate-keep-badge', text: this.plugin.t('suggestKeep') });
 			} else {
 				// 隔离按钮
-				const quarantineBtn = fileEl.createEl('button', { cls: 'quarantine-btn' });
+				const quarantineBtn = fileEl.createEl('button', { cls: 'duplicate-quarantine-btn' });
 				setIcon(quarantineBtn, 'archive');
 				quarantineBtn.createSpan({ text: ` ${this.plugin.t('quarantine')}` });
 				quarantineBtn.addEventListener('click', async () => {
