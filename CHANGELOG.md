@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.17] - 2026-03-17
+
+### Fixed
+- 修复重复检测对透明 PNG logo 的误判：哈希计算改为在白底上处理透明像素并裁掉透明留白，避免将 Grok 误并入 ChatGPT，同时提升 Claude 同图不同文件的命中率
+
+---
+
 ## [1.1.16] - 2026-03-15
 
 ### Changed

@@ -5,16 +5,112 @@
  */
 
 const DEFAULT_IMAGE_LOAD_TIMEOUT = 8000;
+const HASH_BACKGROUND_RGB = 255;
+const ALPHA_CONTENT_THRESHOLD = 8;
+
+interface ImageBounds {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}
+
+interface SourceBitmap {
+	canvas: HTMLCanvasElement;
+	imageData: ImageData;
+	bounds: ImageBounds;
+	hasTransparency: boolean;
+}
 
 /**
- * 获取图片的灰度像素数据
+ * 计算透明图片的有效内容区域。
+ * 这样可以减少大面积透明留白对哈希结果的干扰。
  */
-function getGrayscaleData(img: HTMLImageElement, width: number, height: number): number[] {
+function analyzeImageData(imageData: ImageData): { bounds: ImageBounds; hasTransparency: boolean } {
+	const { data, width, height } = imageData;
+	let left = width;
+	let top = height;
+	let right = -1;
+	let bottom = -1;
+	let hasTransparency = false;
+
+	for (let y = 0; y < height; y++) {
+		for (let x = 0; x < width; x++) {
+			const alpha = data[(y * width + x) * 4 + 3];
+			if (alpha < 255) {
+				hasTransparency = true;
+			}
+			if (alpha <= ALPHA_CONTENT_THRESHOLD) continue;
+
+			if (x < left) left = x;
+			if (y < top) top = y;
+			if (x > right) right = x;
+			if (y > bottom) bottom = y;
+		}
+	}
+
+	if (right < left || bottom < top) {
+		return {
+			bounds: { left: 0, top: 0, width, height },
+			hasTransparency
+		};
+	}
+
+	return {
+		bounds: {
+			left,
+			top,
+			width: right - left + 1,
+			height: bottom - top + 1
+		},
+		hasTransparency
+	};
+}
+
+/**
+ * 读取原图像素数据，并预先分析透明区域与有效内容边界。
+ */
+function captureSourceBitmap(img: HTMLImageElement): SourceBitmap {
+	const sourceCanvas = document.createElement('canvas');
+	sourceCanvas.width = img.naturalWidth || img.width;
+	sourceCanvas.height = img.naturalHeight || img.height;
+	const sourceCtx = sourceCanvas.getContext('2d')!;
+	sourceCtx.drawImage(img, 0, 0);
+
+	const sourceImageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+	const { bounds, hasTransparency } = analyzeImageData(sourceImageData);
+
+	return {
+		canvas: sourceCanvas,
+		imageData: sourceImageData,
+		bounds,
+		hasTransparency
+	};
+}
+
+/**
+ * 获取图片的灰度像素数据。
+ * 对透明 PNG 会先在白底上合成，再裁掉透明留白，避免透明背景与黑色图形被误认为同一种像素。
+ */
+function getGrayscaleData(source: SourceBitmap, width: number, height: number): number[] {
 	const canvas = document.createElement('canvas');
 	canvas.width = width;
 	canvas.height = height;
 	const ctx = canvas.getContext('2d')!;
-	ctx.drawImage(img, 0, 0, width, height);
+	ctx.fillStyle = `rgb(${HASH_BACKGROUND_RGB}, ${HASH_BACKGROUND_RGB}, ${HASH_BACKGROUND_RGB})`;
+	ctx.fillRect(0, 0, width, height);
+	ctx.drawImage(
+		source.canvas,
+		source.bounds.left,
+		source.bounds.top,
+		source.bounds.width,
+		source.bounds.height,
+		0,
+		0,
+		width,
+		height
+	);
+
 	const imageData = ctx.getImageData(0, 0, width, height);
 	const data = imageData.data;
 	const gray: number[] = [];
@@ -52,11 +148,11 @@ function dct2d(matrix: number[], size: number, outputSize: number): number[] {
 /**
  * DCT pHash: 32×32灰度 → DCT → 取8×8低频 → 中位数阈值 → 64-bit hex
  */
-function computePHash(img: HTMLImageElement): string {
+function computePHash(source: SourceBitmap): string {
 	const SIZE = 32;
 	const LOW_FREQ = 8;
 
-	const gray = getGrayscaleData(img, SIZE, SIZE);
+	const gray = getGrayscaleData(source, SIZE, SIZE);
 	const dctCoeffs = dct2d(gray, SIZE, LOW_FREQ);
 
 	// 排除 DC 分量 (0,0)
@@ -76,8 +172,8 @@ function computePHash(img: HTMLImageElement): string {
 /**
  * dHash: 9×8灰度 → 水平差分 → 64-bit hex
  */
-function computeDHash(img: HTMLImageElement): string {
-	const gray = getGrayscaleData(img, 9, 8);
+function computeDHash(source: SourceBitmap): string {
+	const gray = getGrayscaleData(source, 9, 8);
 	let hash = '';
 
 	for (let y = 0; y < 8; y++) {
@@ -101,19 +197,108 @@ function binaryToHex(binary: string): string {
 }
 
 /**
- * 计算组合 128-bit 哈希（pHash + dHash）
+ * 计算透明图像的轮廓哈希。
+ * 直接对 alpha 蒙版采样，比在透明背景上做灰度哈希更适合图标类素材。
  */
-export async function computePerceptualHash(imageSrc: string): Promise<string> {
+function computeAlphaMaskHash(source: SourceBitmap): string {
+	const SIZE = 16;
+	const canvas = document.createElement('canvas');
+	canvas.width = SIZE;
+	canvas.height = SIZE;
+	const ctx = canvas.getContext('2d')!;
+	ctx.clearRect(0, 0, SIZE, SIZE);
+	ctx.drawImage(
+		source.canvas,
+		source.bounds.left,
+		source.bounds.top,
+		source.bounds.width,
+		source.bounds.height,
+		0,
+		0,
+		SIZE,
+		SIZE
+	);
+	const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+	let binary = '';
+	for (let i = 0; i < data.length; i += 4) {
+		binary += data[i + 3] > ALPHA_CONTENT_THRESHOLD ? '1' : '0';
+	}
+	return binaryToHex(binary);
+}
+
+/**
+ * 计算透明图像的粗颜色签名。
+ * 颜色量化后可以容忍轻微抗锯齿差异，同时避免“同轮廓不同颜色”被当成完全重复。
+ */
+function computeQuantizedColorHash(source: SourceBitmap): string {
+	const { data } = source.imageData;
+	let visiblePixels = 0;
+	let rTotal = 0;
+	let gTotal = 0;
+	let bTotal = 0;
+
+	for (let i = 0; i < data.length; i += 4) {
+		const alpha = data[i + 3];
+		if (alpha <= ALPHA_CONTENT_THRESHOLD) continue;
+
+		rTotal += data[i];
+		gTotal += data[i + 1];
+		bTotal += data[i + 2];
+		visiblePixels++;
+	}
+
+	if (visiblePixels === 0) {
+		return '000';
+	}
+
+	const quantize = (value: number): string => {
+		const bucket = Math.max(0, Math.min(15, Math.round(value / 17)));
+		return bucket.toString(16);
+	};
+
+	return [
+		quantize(rTotal / visiblePixels),
+		quantize(gTotal / visiblePixels),
+		quantize(bTotal / visiblePixels)
+	].join('');
+}
+
+export interface ImageHash {
+	mode: 'opaque' | 'transparent';
+	hashes: string[];
+}
+
+/**
+ * 计算图片哈希。
+ * 透明图优先使用 alpha 蒙版轮廓 + 粗颜色签名；普通图继续使用 pHash + dHash。
+ */
+export async function computePerceptualHash(imageSrc: string): Promise<ImageHash> {
 	const img = await loadImage(imageSrc);
-	const pHash = computePHash(img);
-	const dHash = computeDHash(img);
-	return pHash + dHash;
+	const source = captureSourceBitmap(img);
+
+	if (source.hasTransparency) {
+		return {
+			mode: 'transparent',
+			hashes: [
+				computeAlphaMaskHash(source),
+				computeQuantizedColorHash(source)
+			]
+		};
+	}
+
+	return {
+		mode: 'opaque',
+		hashes: [
+			computePHash(source),
+			computeDHash(source)
+		]
+	};
 }
 
 /**
  * 从 ArrayBuffer 计算哈希
  */
-export async function computeHashFromBuffer(buffer: ArrayBuffer, mimeType: string = 'image/png'): Promise<string> {
+export async function computeHashFromBuffer(buffer: ArrayBuffer, mimeType: string = 'image/png'): Promise<ImageHash> {
 	const blob = new Blob([buffer], { type: mimeType });
 	const url = URL.createObjectURL(blob);
 	try {
@@ -180,25 +365,45 @@ export function hammingDistance(h1: string, h2: string): number {
 /**
  * 计算两个哈希的相似度百分比
  */
-export function hashSimilarity(h1: string, h2: string): number {
+function hashSegmentSimilarity(h1: string, h2: string): number {
 	const totalBits = h1.length * 4; // 每个 hex 字符 4 bits
 	const distance = hammingDistance(h1, h2);
 	return Math.round((1 - distance / totalBits) * 100);
 }
 
 /**
+ * 计算两个图片哈希的相似度百分比。
+ * 透明图更看重轮廓，一般图片沿用原来的 pHash + dHash 组合。
+ */
+export function hashSimilarity(h1: ImageHash, h2: ImageHash): number {
+	if (h1.mode !== h2.mode) {
+		return 0;
+	}
+
+	if (h1.mode === 'transparent') {
+		const shapeSimilarity = hashSegmentSimilarity(h1.hashes[0], h2.hashes[0]);
+		const colorSimilarity = hashSegmentSimilarity(h1.hashes[1], h2.hashes[1]);
+		return Math.round(shapeSimilarity * 0.8 + colorSimilarity * 0.2);
+	}
+
+	const pHashSimilarity = hashSegmentSimilarity(h1.hashes[0], h2.hashes[0]);
+	const dHashSimilarity = hashSegmentSimilarity(h1.hashes[1], h2.hashes[1]);
+	return Math.round((pHashSimilarity + dHashSimilarity) / 2);
+}
+
+/**
  * 重复组
  */
 export interface DuplicateGroup {
-	hash: string;
-	files: Array<{ path: string; hash: string; similarity: number }>;
+	hash: ImageHash;
+	files: Array<{ path: string; hash: ImageHash; similarity: number }>;
 }
 
 /**
  * 从哈希映射中查找重复组
  */
 export function findDuplicateGroups(
-	hashMap: Map<string, string>,
+	hashMap: Map<string, ImageHash>,
 	threshold: number = 90
 ): DuplicateGroup[] {
 	const entries = Array.from(hashMap.entries());

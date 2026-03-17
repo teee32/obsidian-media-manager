@@ -7,7 +7,7 @@ import { TFile, ItemView, WorkspaceLeaf, setIcon, Notice } from 'obsidian';
 import ImageManagerPlugin from '../main';
 import { formatFileSize } from '../utils/format';
 import { getMediaType } from '../utils/mediaTypes';
-import { computePerceptualHash, findDuplicateGroups, DuplicateGroup } from '../utils/perceptualHash';
+import { computePerceptualHash, findDuplicateGroups, DuplicateGroup, ImageHash } from '../utils/perceptualHash';
 
 export const VIEW_TYPE_DUPLICATE_DETECTION = 'duplicate-detection-view';
 
@@ -222,7 +222,7 @@ export class DuplicateDetectionView extends ItemView {
 			await this.renderView();
 
 			// 分批计算哈希
-			const hashMap = new Map<string, string>();
+			const hashMap = new Map<string, ImageHash>();
 			const BATCH_SIZE = 5;
 
 			for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
