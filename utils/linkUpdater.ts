@@ -9,6 +9,7 @@ import { getFileNameFromPath, getParentPath, normalizeVaultPath, safeDecodeURICo
 const WIKI_LINK_PATTERN = /(!?\[\[)([^\]|]+)(\|[^\]]*)?(\]\])/g;
 const MARKDOWN_LINK_PATTERN = /(!?\[[^\]]*\]\()([^)]+)(\))/g;
 type LinkPathStyle = 'basename' | 'relative' | 'vault' | 'absolute';
+type LinkKind = 'wiki' | 'markdown';
 
 /**
  * 更新所有笔记中的文件链接
@@ -72,7 +73,7 @@ export function updateLinksInContent(
 	content = content.replace(WIKI_LINK_PATTERN, (fullMatch, prefix, linktext, alias = '', suffix) => {
 		const parsed = parseLinktext(linktext);
 		const resolvedPath = resolveLinkDestination(app, parsed.path, sourceFile.path);
-		if (!shouldRewriteLink(parsed.path, resolvedPath, oldPath)) {
+		if (!shouldRewriteLink(parsed.path, resolvedPath, oldPath, sourceFile.path)) {
 			return fullMatch;
 		}
 
@@ -80,7 +81,8 @@ export function updateLinksInContent(
 			parsed.path,
 			sourceFile.path,
 			normalizedNewPath,
-			forceDisambiguateBasename
+			forceDisambiguateBasename,
+			'wiki'
 		);
 		return `${prefix}${replacementLinkPath}${parsed.subpath || ''}${alias}${suffix}`;
 	});
@@ -88,7 +90,7 @@ export function updateLinksInContent(
 	content = content.replace(MARKDOWN_LINK_PATTERN, (fullMatch, prefix, destination, suffix) => {
 		const parsed = parseMarkdownDestination(destination);
 		const resolvedPath = resolveLinkDestination(app, parsed.path, sourceFile.path);
-		if (!shouldRewriteLink(parsed.path, resolvedPath, oldPath)) {
+		if (!shouldRewriteLink(parsed.path, resolvedPath, oldPath, sourceFile.path)) {
 			return fullMatch;
 		}
 
@@ -97,7 +99,8 @@ export function updateLinksInContent(
 				parsed.path,
 				sourceFile.path,
 				normalizedNewPath,
-				forceDisambiguateBasename
+				forceDisambiguateBasename,
+				'markdown'
 			),
 			parsed.suffix,
 			parsed.isWrapped
@@ -159,31 +162,32 @@ function formatMarkdownDestination(linkPath: string, suffix: string, isWrapped: 
 	return combined.replace(/ /g, '\\ ');
 }
 
-function shouldRewriteLink(rawPath: string, resolvedPath: string, oldPath: string): boolean {
+function shouldRewriteLink(rawPath: string, resolvedPath: string, oldPath: string, sourcePath: string): boolean {
 	if (resolvedPath === oldPath) {
 		return true;
 	}
-
-	// 兜底：当链接是裸文件名（例如 [[moon-a.jpg]]）且与旧文件同名时，
-	// 即使 metadataCache 因同名文件歧义返回了其他目标，也按旧文件处理。
-	const normalized = normalizeVaultPath(safeDecodeURIComponent(rawPath).replace(/\\ /g, ' ')).toLowerCase();
-	if (!normalized || normalized.includes('/')) {
+	if (resolvedPath) {
 		return false;
 	}
 
-	const oldBase = getFileNameFromPath(oldPath).toLowerCase();
-	return normalized === oldBase;
+	// 兜底仅用于 metadataCache 无法解析时，且 rawPath 在语义上可唯一定位。
+	// 对裸文件名不做兜底，避免同名文件误改。
+	return resolveDeterministicPath(rawPath, sourcePath) === oldPath;
 }
 
 function composeReplacementPath(
 	rawPath: string,
 	sourcePath: string,
 	newPath: string,
-	forceDisambiguateBasename: boolean
+	forceDisambiguateBasename: boolean,
+	linkKind: LinkKind
 ): string {
 	const style = detectLinkPathStyle(rawPath);
 	switch (style) {
 		case 'basename':
+			if (linkKind === 'markdown') {
+				return toRelativeVaultPath(sourcePath, newPath) || getFileNameFromPath(newPath) || newPath;
+			}
 			if (forceDisambiguateBasename) {
 				return newPath;
 			}
@@ -196,6 +200,58 @@ function composeReplacementPath(
 		default:
 			return newPath;
 	}
+}
+
+function resolveDeterministicPath(rawPath: string, sourcePath: string): string {
+	let candidate = String(rawPath || '').trim();
+	if (!candidate) {
+		return '';
+	}
+
+	candidate = candidate.replace(/\\ /g, ' ');
+	candidate = safeDecodeURIComponent(candidate);
+
+	if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+		return '';
+	}
+
+	if (candidate.startsWith('/')) {
+		return normalizeVaultPath(candidate).toLowerCase();
+	}
+
+	if (candidate.startsWith('./') || candidate.startsWith('../')) {
+		const sourceDir = normalizeVaultPath(getParentPath(sourcePath));
+		return resolveRelativePath(sourceDir, candidate).toLowerCase();
+	}
+
+	const normalized = normalizeVaultPath(candidate).toLowerCase();
+	if (normalized.includes('/')) {
+		return normalized;
+	}
+
+	// basename 无法唯一确定目标
+	return '';
+}
+
+function resolveRelativePath(sourceDir: string, relativePath: string): string {
+	const baseParts = sourceDir ? sourceDir.split('/').filter(Boolean) : [];
+	const relParts = String(relativePath || '').replace(/\\/g, '/').split('/');
+
+	for (const part of relParts) {
+		if (!part || part === '.') {
+			continue;
+		}
+		if (part === '..') {
+			if (baseParts.length === 0) {
+				return '';
+			}
+			baseParts.pop();
+			continue;
+		}
+		baseParts.push(part);
+	}
+
+	return normalizeVaultPath(baseParts.join('/'));
 }
 
 function hasFilenameCollision(app: App, fileName: string, canonicalPath: string): boolean {
