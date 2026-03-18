@@ -2,7 +2,7 @@ import { TFile, ItemView, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 
 import ImageManagerPlugin from '../main';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { formatFileSize } from '../utils/format';
-import { getMediaType } from '../utils/mediaTypes';
+import { getMediaType, getDocumentDisplayLabel } from '../utils/mediaTypes';
 
 export const VIEW_TYPE_UNREFERENCED_IMAGES = 'unreferenced-images-view';
 
@@ -225,7 +225,7 @@ export class UnreferencedImagesView extends ItemView {
 		}
 
 		if (mediaType === 'document') {
-			this.renderThumbnailFallback(container, 'file-text', 'PDF');
+			this.renderThumbnailFallback(container, 'file-text', getDocumentDisplayLabel(file.name));
 			return;
 		}
 

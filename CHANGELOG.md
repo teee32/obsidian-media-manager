@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- 修复重复检测隔离副本时的链接重写逻辑：按 Obsidian 实际解析结果更新 Wiki/Markdown 链接，覆盖相对路径以及带查询参数/锚点的链接，避免同名附件误改
+
+### Changed
+- 文档支持范围和界面文案统一为 `pdf/doc/docx/xls/xlsx/ppt/pptx`，缩略图回退标签按真实扩展名显示，README 同步补充 Office 文档行为说明
+
 ---
 
 ## [1.1.17] - 2026-03-17

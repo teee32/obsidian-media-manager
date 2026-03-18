@@ -2,7 +2,7 @@ import { TFile, ItemView, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice } from 
 import ImageManagerPlugin from '../main';
 import { formatFileSize, debounce } from '../utils/format';
 import { normalizeVaultPath } from '../utils/path';
-import { getMediaType, getFileExtension } from '../utils/mediaTypes';
+import { getMediaType, getFileExtension, getDocumentDisplayLabel } from '../utils/mediaTypes';
 import { generateThumbnail } from '../utils/thumbnailCache';
 import { findMatchingRule, computeTarget, OrganizeContext } from '../utils/ruleEngine';
 import { parseExif } from '../utils/exifReader';
@@ -513,7 +513,7 @@ export class ImageLibraryView extends ItemView {
 		}
 
 		if (mediaType === 'document') {
-			this.renderThumbnailFallback(container, 'file-text', 'PDF');
+			this.renderThumbnailFallback(container, 'file-text', getDocumentDisplayLabel(file.name));
 			return;
 		}
 

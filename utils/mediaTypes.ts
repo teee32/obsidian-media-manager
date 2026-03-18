@@ -21,7 +21,7 @@ export const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.m4a', '.flac'] as con
 /**
  * 文档扩展名
  */
-export const DOCUMENT_EXTENSIONS = ['.pdf'] as const;
+export const DOCUMENT_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.pptx', '.doc', '.xls', '.ppt'] as const;
 
 /**
  * 所有支持的图片扩展名（字符串数组）
@@ -78,7 +78,13 @@ export const EXTENSION_TO_TYPE: Record<string, 'image' | 'video' | 'audio' | 'do
 	'.m4a': 'audio',
 	'.flac': 'audio',
 	// 文档
-	'.pdf': 'document'
+	'.pdf': 'document',
+	'.docx': 'document',
+	'.xlsx': 'document',
+	'.pptx': 'document',
+	'.doc': 'document',
+	'.xls': 'document',
+	'.ppt': 'document'
 };
 
 /**
@@ -128,6 +134,17 @@ export function isAudioFile(filename: string): boolean {
 export function isDocumentFile(filename: string): boolean {
 	const ext = getFileExtension(filename);
 	return DOCUMENT_EXTENSIONS_STR.includes(ext);
+}
+
+/**
+ * 获取文档回退展示标签
+ */
+export function getDocumentDisplayLabel(filename: string): string {
+	const ext = getFileExtension(filename);
+	if (!ext) {
+		return 'DOC';
+	}
+	return ext.slice(1).toUpperCase();
 }
 
 /**

@@ -1643,7 +1643,7 @@ export default class ImageManagerPlugin extends Plugin {
 		workspace.revealLeaf(leaf);
 	}
 
-	// 获取所有媒体文件（图片、音视频、PDF）
+	// 获取所有媒体文件（图片、音视频、文档）
 	async getAllImageFiles(): Promise<TFile[]> {
 		// 从设置中获取启用的扩展名
 		const enabledExtensions = getEnabledExtensions({
@@ -1802,7 +1802,7 @@ export default class ImageManagerPlugin extends Plugin {
 					addReferencedPath(match[1], file.path);
 				}
 
-				// 匹配 Markdown 链接（图片/音视频/PDF）
+				// 匹配 Markdown 链接（图片/音视频/文档）
 				while ((match = markdownLinkPattern.exec(content)) !== null) {
 					addReferencedPath(match[1], file.path);
 				}

@@ -1,5 +1,6 @@
 import { Modal, Notice, TFile } from 'obsidian';
 import ImageManagerPlugin from '../main';
+import { getDocumentDisplayLabel, getMediaType } from '../utils/mediaTypes';
 
 export class MediaPreviewModal extends Modal {
 	plugin: ImageManagerPlugin;
@@ -53,9 +54,11 @@ export class MediaPreviewModal extends Modal {
 		container.empty();
 		const file = this.allFiles[this.currentIndex];
 		const ext = file.extension.toLowerCase();
-		const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(ext);
-		const isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext);
-		const isAudio = ['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext);
+		const mediaType = getMediaType(file.name);
+		const isImage = mediaType === 'image';
+		const isVideo = mediaType === 'video';
+		const isAudio = mediaType === 'audio';
+		const isDocument = mediaType === 'document';
 		const isPdf = ext === 'pdf';
 
 		if (isImage) {
@@ -92,6 +95,10 @@ export class MediaPreviewModal extends Modal {
 					sandbox: 'allow-scripts'
 				}
 			});
+		} else if (isDocument) {
+			const unsupported = container.createDiv({ cls: 'preview-unsupported' });
+			unsupported.createDiv({ text: getDocumentDisplayLabel(file.name) });
+			unsupported.createDiv({ text: this.plugin.t('unsupportedFileType') });
 		} else {
 			container.createDiv({ cls: 'preview-unsupported', text: this.plugin.t('unsupportedFileType') });
 		}
@@ -162,6 +169,14 @@ export class MediaPreviewModal extends Modal {
 				console.error('复制到剪贴板失败:', error);
 				new Notice(this.plugin.t('error'));
 			});
+		});
+
+		// 打开原文件
+		const openOriginalBtn = actions.createEl('button');
+		openOriginalBtn.textContent = this.plugin.t('openOriginal');
+		openOriginalBtn.addEventListener('click', () => {
+			const src = this.app.vault.getResourcePath(file);
+			window.open(src, '_blank', 'noopener,noreferrer');
 		});
 
 		// 在笔记中查找

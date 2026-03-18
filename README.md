@@ -1,6 +1,6 @@
 # Obsidian Media Toolkit
 
-Manage images, video, audio, and PDF files inside your Obsidian vault.
+Manage images, video, audio, PDF, and common Office files inside your Obsidian vault.
 
 [中文](#中文) | [English](#english)
 
@@ -13,7 +13,7 @@ Manage images, video, audio, and PDF files inside your Obsidian vault.
 ### 功能概览
 
 #### 媒体库
-- 网格浏览 Vault 中的图片、视频、音频和 PDF
+- 网格浏览 Vault 中的图片、视频、音频，以及 PDF / Word / Excel / PowerPoint 文件
 - 搜索、排序、分页、多选、复制路径/链接、在笔记中查找
 - 缩略图缓存和预览弹窗，减少重复打开时的等待
 
@@ -110,6 +110,7 @@ Manage images, video, audio, and PDF files inside your Obsidian vault.
 1. 执行 `打开重复检测`。
 2. 点击开始扫描，等待感知哈希计算完成。
 3. 按组检查重复图片，保留需要的文件，将冗余副本送入隔离区。
+4. 隔离重复项时，插件会先把引用旧副本的笔记链接重写到保留文件，再移动冗余文件到隔离区。
 
 #### 6. 管理隔离区
 1. 执行 `隔离文件管理`，或使用 `Ctrl/Cmd + Shift + T`。
@@ -158,7 +159,9 @@ Manage images, video, audio, and PDF files inside your Obsidian vault.
 - 图片: `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `bmp`
 - 视频: `mp4`, `mov`, `avi`, `mkv`, `webm`
 - 音频: `mp3`, `wav`, `ogg`, `m4a`, `flac`
-- 文档: `pdf`
+- 文档: `pdf`, `doc`, `docx`, `xls`, `xlsx`, `ppt`, `pptx`
+
+注: PDF 支持内嵌预览；其他文档类型在列表里会显示文件类型标记，可复制链接、查找引用并用系统方式打开原文件。
 
 #### 静态图片处理
 - `png`, `jpg`, `jpeg`, `webp`, `bmp`
@@ -166,7 +169,7 @@ Manage images, video, audio, and PDF files inside your Obsidian vault.
 ### 主要设置
 - 媒体文件夹范围
 - 缩略图大小、分页大小、排序方式
-- 图片/视频/音频/PDF 显示开关
+- 图片/视频/音频/文档 显示开关
 - 预览弹窗和键盘导航
 - 隔离区路径与自动清理
 - 安全扫描天数和最小文件大小
@@ -191,7 +194,7 @@ MIT License
 ### Feature Overview
 
 #### Media Library
-- Browse images, video, audio, and PDF files in a grid view
+- Browse images, video, audio, plus PDF / Word / Excel / PowerPoint files in a grid view
 - Search, sort, paginate, multi-select, copy paths/links, and find references in notes
 - Cached thumbnails and preview modal for faster repeated access
 
@@ -288,6 +291,7 @@ The older `===center=== ... ===` wrapper syntax is still supported for backward 
 1. Run `Open Duplicate Detection`.
 2. Start the scan and wait for perceptual-hash analysis to finish.
 3. Review each duplicate group, keep the file you want, and quarantine the redundant copies.
+4. When quarantining a duplicate, the plugin rewrites note links that resolve to the removed copy so they point to the kept file first.
 
 #### 6. Manage Quarantine
 1. Run `Trash Management` or press `Ctrl/Cmd + Shift + T`.
@@ -336,7 +340,9 @@ These names map to Obsidian's built-in Lucide icons. In many places the UI shows
 - Images: `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `bmp`
 - Videos: `mp4`, `mov`, `avi`, `mkv`, `webm`
 - Audio: `mp3`, `wav`, `ogg`, `m4a`, `flac`
-- Documents: `pdf`
+- Documents: `pdf`, `doc`, `docx`, `xls`, `xlsx`, `ppt`, `pptx`
+
+Note: PDF files support inline preview. Other document types use typed fallbacks in the UI, keep link/reference workflows, and can be opened via the system handler.
 
 #### Static Image Processing
 - `png`, `jpg`, `jpeg`, `webp`, `bmp`
@@ -344,7 +350,7 @@ These names map to Obsidian's built-in Lucide icons. In many places the UI shows
 ### Main Settings
 - Media folder scope
 - Thumbnail size, page size, and default sorting
-- Image / video / audio / PDF visibility toggles
+- Image / video / audio / document visibility toggles
 - Preview modal and keyboard navigation
 - Quarantine path and auto cleanup
 - Safe-scan age and minimum file size

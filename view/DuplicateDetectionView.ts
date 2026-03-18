@@ -8,6 +8,7 @@ import ImageManagerPlugin from '../main';
 import { formatFileSize } from '../utils/format';
 import { getMediaType } from '../utils/mediaTypes';
 import { computePerceptualHash, findDuplicateGroups, DuplicateGroup, ImageHash } from '../utils/perceptualHash';
+import { updateLinksInVault } from '../utils/linkUpdater';
 
 export const VIEW_TYPE_DUPLICATE_DETECTION = 'duplicate-detection-view';
 
@@ -355,9 +356,10 @@ export class DuplicateDetectionView extends ItemView {
 				setIcon(quarantineBtn, 'archive');
 				quarantineBtn.createSpan({ text: ` ${this.plugin.t('quarantine')}` });
 				quarantineBtn.addEventListener('click', async () => {
+					const keepFile = group.files[0];
+					await updateLinksInVault(this.app, file.path, keepFile.path);
 					const result = await this.plugin.safeDeleteFile(file);
 					if (result) {
-						// 从组中移除
 						group.files.splice(i, 1);
 						if (group.files.length <= 1) {
 							const idx = this.duplicateGroups.indexOf(group);
@@ -379,12 +381,14 @@ export class DuplicateDetectionView extends ItemView {
 		for (const group of this.duplicateGroups) {
 			group.files.sort((a, b) => this.compareDuplicateFiles(a.path, b.path));
 
+			const keepFile = group.files[0];
 			// 保留第一个（最新），隔离其余
 			for (let i = 1; i < group.files.length; i++) {
 				const entry = group.files[i];
 				const file = this.app.vault.getAbstractFileByPath(entry.path);
 				if (!(file instanceof TFile)) continue;
 
+				await updateLinksInVault(this.app, file.path, keepFile.path);
 				const result = await this.plugin.safeDeleteFile(file);
 				if (result) totalQuarantined++;
 			}
