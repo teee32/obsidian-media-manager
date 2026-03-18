@@ -7,12 +7,15 @@
     "build": "node esbuild.config.mjs",
     "build:release": "node esbuild.config.mjs --production",
     "typecheck": "tsc --noEmit",
-    "dev": "node esbuild.config.mjs"
+    "dev": "node esbuild.config.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^16.18.0",
     "esbuild": "^0.27.3",
     "obsidian": "^1.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^0.34.6"
   }
 }

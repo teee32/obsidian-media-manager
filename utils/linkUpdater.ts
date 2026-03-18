@@ -126,8 +126,10 @@ function resolveLinkDestination(app: App, rawLinkPath: string, sourcePath: strin
 
 	const normalizedCandidate = normalizeVaultPath(candidate);
 	const resolved = app.metadataCache.getFirstLinkpathDest(normalizedCandidate || candidate, sourcePath);
-	const resolvedPath = resolved ? resolved.path : normalizedCandidate;
-	return normalizeVaultPath(resolvedPath).toLowerCase();
+	if (!resolved) {
+		return '';
+	}
+	return normalizeVaultPath(resolved.path).toLowerCase();
 }
 
 function parseMarkdownDestination(destination: string): {
