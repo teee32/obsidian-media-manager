@@ -4,10 +4,11 @@
  */
 
 import { App, TFile, parseLinktext } from 'obsidian';
-import { normalizeVaultPath, safeDecodeURIComponent } from './path';
+import { getFileNameFromPath, getParentPath, normalizeVaultPath, safeDecodeURIComponent } from './path';
 
 const WIKI_LINK_PATTERN = /(!?\[\[)([^\]|]+)(\|[^\]]*)?(\]\])/g;
 const MARKDOWN_LINK_PATTERN = /(!?\[[^\]]*\]\()([^)]+)(\))/g;
+type LinkPathStyle = 'basename' | 'relative' | 'vault' | 'absolute';
 
 /**
  * 更新所有笔记中的文件链接
@@ -57,27 +58,28 @@ export function updateLinksInContent(
 	oldPath: string,
 	newFile: TFile
 ): string {
-	const replacementLinkPath = app.metadataCache.fileToLinktext(newFile, sourceFile.path, false);
+	const normalizedNewPath = normalizeVaultPath(newFile.path);
 
 	content = content.replace(WIKI_LINK_PATTERN, (fullMatch, prefix, linktext, alias = '', suffix) => {
 		const parsed = parseLinktext(linktext);
 		const resolvedPath = resolveLinkDestination(app, parsed.path, sourceFile.path);
-		if (resolvedPath !== oldPath) {
+		if (!shouldRewriteLink(parsed.path, resolvedPath, oldPath)) {
 			return fullMatch;
 		}
 
+		const replacementLinkPath = composeReplacementPath(parsed.path, sourceFile.path, normalizedNewPath);
 		return `${prefix}${replacementLinkPath}${parsed.subpath || ''}${alias}${suffix}`;
 	});
 
 	content = content.replace(MARKDOWN_LINK_PATTERN, (fullMatch, prefix, destination, suffix) => {
 		const parsed = parseMarkdownDestination(destination);
 		const resolvedPath = resolveLinkDestination(app, parsed.path, sourceFile.path);
-		if (resolvedPath !== oldPath) {
+		if (!shouldRewriteLink(parsed.path, resolvedPath, oldPath)) {
 			return fullMatch;
 		}
 
 		const nextDestination = formatMarkdownDestination(
-			replacementLinkPath,
+			composeReplacementPath(parsed.path, sourceFile.path, normalizedNewPath),
 			parsed.suffix,
 			parsed.isWrapped
 		);
@@ -136,4 +138,75 @@ function formatMarkdownDestination(linkPath: string, suffix: string, isWrapped: 
 		return `<${combined}>`;
 	}
 	return combined.replace(/ /g, '\\ ');
+}
+
+function shouldRewriteLink(rawPath: string, resolvedPath: string, oldPath: string): boolean {
+	if (resolvedPath === oldPath) {
+		return true;
+	}
+
+	// 兜底：当链接是裸文件名（例如 [[moon-a.jpg]]）且与旧文件同名时，
+	// 即使 metadataCache 因同名文件歧义返回了其他目标，也按旧文件处理。
+	const normalized = normalizeVaultPath(safeDecodeURIComponent(rawPath).replace(/\\ /g, ' ')).toLowerCase();
+	if (!normalized || normalized.includes('/')) {
+		return false;
+	}
+
+	const oldBase = getFileNameFromPath(oldPath).toLowerCase();
+	return normalized === oldBase;
+}
+
+function composeReplacementPath(rawPath: string, sourcePath: string, newPath: string): string {
+	const style = detectLinkPathStyle(rawPath);
+	switch (style) {
+		case 'basename':
+			return getFileNameFromPath(newPath) || newPath;
+		case 'relative':
+			return toRelativeVaultPath(sourcePath, newPath) || getFileNameFromPath(newPath) || newPath;
+		case 'absolute':
+			return `/${newPath}`;
+		case 'vault':
+		default:
+			return newPath;
+	}
+}
+
+function detectLinkPathStyle(rawPath: string): LinkPathStyle {
+	const trimmed = String(rawPath || '').trim();
+	if (!trimmed) return 'basename';
+	if (trimmed.startsWith('/')) return 'absolute';
+	if (trimmed.startsWith('./') || trimmed.startsWith('../')) return 'relative';
+
+	const normalized = normalizeVaultPath(trimmed);
+	if (normalized.includes('/')) {
+		return 'vault';
+	}
+	return 'basename';
+}
+
+function toRelativeVaultPath(sourcePath: string, targetPath: string): string {
+	const fromDir = normalizeVaultPath(getParentPath(sourcePath));
+	const to = normalizeVaultPath(targetPath);
+	if (!to) return '';
+
+	const fromParts = fromDir ? fromDir.split('/') : [];
+	const toParts = to.split('/');
+
+	let common = 0;
+	while (
+		common < fromParts.length &&
+		common < toParts.length &&
+		fromParts[common] === toParts[common]
+	) {
+		common++;
+	}
+
+	const upCount = fromParts.length - common;
+	const parts: string[] = [];
+	for (let i = 0; i < upCount; i++) {
+		parts.push('..');
+	}
+	parts.push(...toParts.slice(common));
+
+	return parts.join('/');
 }

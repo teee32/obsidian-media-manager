@@ -1,7 +1,7 @@
 import { TFile, TFolder, ItemView, WorkspaceLeaf, setIcon, Menu, MenuItem, Notice, Modal, ButtonComponent } from 'obsidian';
 import ImageManagerPlugin from '../main';
 import { formatFileSize } from '../utils/format';
-import { getMediaType } from '../utils/mediaTypes';
+import { getDocumentDisplayLabel, getMediaType } from '../utils/mediaTypes';
 import { isPathSafe } from '../utils/security';
 import { getFileNameFromPath, normalizeVaultPath, safeDecodeURIComponent } from '../utils/path';
 
@@ -384,6 +384,22 @@ export class TrashManagementView extends ItemView {
 		// 文件信息
 		const info = itemEl.createDiv({ cls: 'item-info' });
 		info.createDiv({ cls: 'item-name', text: item.name });
+		const typeBadge = info.createSpan({
+			cls: 'item-type-badge',
+			text: this.getTypeLabel(item.name)
+		});
+		typeBadge.style.display = 'inline-flex';
+		typeBadge.style.alignItems = 'center';
+		typeBadge.style.width = 'fit-content';
+		typeBadge.style.padding = '2px 8px';
+		typeBadge.style.marginTop = '4px';
+		typeBadge.style.borderRadius = '999px';
+		typeBadge.style.fontSize = '0.75em';
+		typeBadge.style.fontWeight = '600';
+		typeBadge.style.letterSpacing = '0.04em';
+		typeBadge.style.border = '1px solid var(--background-modifier-border)';
+		typeBadge.style.color = 'var(--text-muted)';
+		typeBadge.style.background = 'var(--background-secondary)';
 
 		if (item.originalPath) {
 			info.createDiv({
@@ -445,9 +461,49 @@ export class TrashManagementView extends ItemView {
 			const iconName = mediaType === 'video' ? 'video' :
 				mediaType === 'audio' ? 'music' :
 				mediaType === 'document' ? 'file-text' : 'file';
-			const icon = container.createDiv({ cls: 'thumb-icon' });
-			setIcon(icon, iconName);
+			this.renderThumbnailFallback(container, iconName, this.getTypeLabel(item.name));
 		}
+	}
+
+	private renderThumbnailFallback(container: HTMLElement, iconName: string, label: string) {
+		container.empty();
+
+		const fallback = container.createDiv();
+		fallback.style.width = '100%';
+		fallback.style.height = '100%';
+		fallback.style.display = 'flex';
+		fallback.style.flexDirection = 'column';
+		fallback.style.alignItems = 'center';
+		fallback.style.justifyContent = 'center';
+		fallback.style.gap = '6px';
+		fallback.style.color = 'var(--text-muted)';
+
+		const icon = fallback.createDiv({ cls: 'thumb-icon' });
+		setIcon(icon, iconName);
+
+		const text = fallback.createDiv({ text: label });
+		text.style.fontSize = '0.72em';
+		text.style.fontWeight = '600';
+		text.style.letterSpacing = '0.04em';
+		text.style.textTransform = 'uppercase';
+	}
+
+	private getTypeLabel(fileName: string): string {
+		const mediaType = getMediaType(fileName);
+		if (mediaType === 'document') {
+			return getDocumentDisplayLabel(fileName);
+		}
+
+		const dot = fileName.lastIndexOf('.');
+		if (dot !== -1 && dot < fileName.length - 1) {
+			return fileName.slice(dot + 1).toUpperCase();
+		}
+
+		if (mediaType) {
+			return mediaType.toUpperCase();
+		}
+
+		return 'FILE';
 	}
 
 	/**

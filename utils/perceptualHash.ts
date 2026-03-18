@@ -323,7 +323,11 @@ function loadImage(src: string, timeoutMs: number = DEFAULT_IMAGE_LOAD_TIMEOUT):
 			reject(new Error(`Failed to load image (timeout): ${src}`));
 		}, timeoutMs);
 
-		img.crossOrigin = 'anonymous';
+		// app:// / file:// / blob: 等本地资源不应强制走 CORS，
+		// 否则在部分环境下会直接触发 error，导致哈希计算失败。
+		if (/^https?:\/\//i.test(src)) {
+			img.crossOrigin = 'anonymous';
+		}
 		img.onload = () => {
 			if (settled) return;
 			settled = true;
