@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.1.18] - 2026-03-18
+
 ### Fixed
-- 修复重复检测隔离副本时的链接重写逻辑：按 Obsidian 实际解析结果更新 Wiki/Markdown 链接，覆盖相对路径以及带查询参数/锚点的链接，避免同名附件误改
+- 修复重复检测隔离副本时的链接重写逻辑：按 Obsidian 实际解析结果更新 Wiki/Markdown 链接，覆盖相对路径以及带查询参数/锚点的 Markdown 链接
+- 修复同名文件场景下的 basename 改写安全性，避免误改到其他同名附件，并保证 Markdown basename 链接改写为正确相对路径
+- 修复本地资源感知哈希加载的 CORS 问题，避免 `app://`、`file://`、`blob:` 资源导致重复检测哈希计算失败
+- 修复媒体预览弹窗并发打开时的状态错位问题，并为不支持内嵌预览的 Office 文档提供更明确提示
+- 修复隔离管理中的类型回退标签显示，按真实扩展名展示文档和其他文件类型
 
 ### Changed
 - 文档支持范围和界面文案统一为 `pdf/doc/docx/xls/xlsx/ppt/pptx`，缩略图回退标签按真实扩展名显示，README 同步补充 Office 文档行为说明
+- 复制链接在同名文件冲突时自动使用稳定路径，“打开原文件”优先交给系统默认程序处理
 
 ---
 
