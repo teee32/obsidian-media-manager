@@ -1,4 +1,4 @@
-# Obsidian Media Toolkit
+# Media Toolkit
 
 Manage images, video, audio, PDF, and common Office files inside your Obsidian vault.
 
@@ -8,7 +8,7 @@ Manage images, video, audio, PDF, and common Office files inside your Obsidian v
 
 [Jump to English](#english)
 
-`Obsidian Media Toolkit` 是一个面向真实笔记工作流的媒体管理插件，覆盖媒体浏览、未引用清理、重复检测、隔离管理和图片对齐。
+`Media Toolkit` 是一个面向真实笔记工作流的媒体管理插件，覆盖媒体浏览、未引用清理、重复检测、隔离管理和图片对齐。
 
 ### 功能概览
 
@@ -56,18 +56,19 @@ Manage images, video, audio, PDF, and common Office files inside your Obsidian v
 #### 手动安装
 1. 克隆仓库或下载源码。
 2. 在项目目录运行 `npm ci` 和 `npm run build`。
-3. 将 `main.js`、`manifest.json`、`styles.css` 复制到你的 Vault 中 `.obsidian/plugins/obsidian-media-toolkit/`。
+3. 将 `main.js`、`manifest.json`、`styles.css` 复制到你的 Vault 中 `.obsidian/plugins/media-toolkit/`。
 4. 重启 Obsidian 并启用插件。
 
 ### 快速使用
 
 #### 快捷键
 
-| 功能 | 快捷键 |
-|------|--------|
-| 打开媒体库 | `Ctrl/Cmd + Shift + M` |
-| 查找未引用媒体 | `Ctrl/Cmd + Shift + U` |
-| 打开隔离文件管理 | `Ctrl/Cmd + Shift + T` |
+插件默认不绑定快捷键，避免和用户现有配置冲突。
+
+你可以在 `设置 -> 快捷键` 里给下面这些命令自行分配快捷键：
+- `媒体库`
+- `查找未引用图片`
+- `隔离文件管理`
 
 #### 命令面板
 - `媒体库`
@@ -91,7 +92,7 @@ Manage images, video, audio, PDF, and common Office files inside your Obsidian v
 3. 如果你只想管理某个附件目录，设置“媒体文件夹”范围。
 
 #### 2. 浏览和定位媒体
-1. 执行 `媒体库` 命令，或使用 `Ctrl/Cmd + Shift + M`。
+1. 执行 `媒体库` 命令；如果需要，也可以先在 `设置 -> 快捷键` 里给它分配自定义快捷键。
 2. 在顶部搜索框输入文件名或路径片段。
 3. 点击文件打开预览，右键可复制路径、复制链接、在笔记中查找或打开原文件。
 
@@ -102,7 +103,7 @@ Manage images, video, audio, PDF, and common Office files inside your Obsidian v
 4. GIF 和 SVG 不提供处理入口，这是刻意限制，避免破坏原始内容。
 
 #### 4. 查找未引用文件
-1. 执行 `查找未引用图片` 命令，或使用 `Ctrl/Cmd + Shift + U`。
+1. 执行 `查找未引用图片` 命令；如果需要，也可以先在 `设置 -> 快捷键` 里给它分配自定义快捷键。
 2. 扫描完成后检查结果列表。
 3. 将确认无用的文件送入隔离区，而不是直接永久删除。
 
@@ -113,7 +114,7 @@ Manage images, video, audio, PDF, and common Office files inside your Obsidian v
 4. 隔离重复项时，插件会先把引用旧副本的笔记链接重写到保留文件，再移动冗余文件到隔离区。
 
 #### 6. 管理隔离区
-1. 执行 `隔离文件管理`，或使用 `Ctrl/Cmd + Shift + T`。
+1. 执行 `隔离文件管理`；如果需要，也可以先在 `设置 -> 快捷键` 里给它分配自定义快捷键。
 2. 查看引用计数、文件大小和类型分布。
 3. 需要时运行安全扫描，筛出长期未引用且体积较大的文件。
 4. 对误删文件执行恢复；确认无用后再永久删除。
@@ -179,6 +180,14 @@ Manage images, video, audio, PDF, and common Office files inside your Obsidian v
 
 Issue: https://github.com/teee32/obsidian-media-toolkit/issues
 
+### 隐私与披露
+
+- 不需要账号，也不依赖付费服务
+- 不发送遥测、不注入广告、不上传 Vault 内容
+- 不发起网络请求，所有媒体扫描、去重和处理都在本地完成
+- 仅在你主动触发“打开原文件”时，才会调用系统默认程序打开本地文件
+- 源代码完整公开在当前仓库中
+
 ### 许可证
 
 MIT License
@@ -189,7 +198,7 @@ MIT License
 
 [跳转到中文](#中文)
 
-`Obsidian Media Toolkit` is a media-management plugin focused on real Obsidian workflows: browsing media, finding unreferenced files, detecting duplicates, managing quarantine, and aligning images in notes.
+`Media Toolkit` is a media-management plugin focused on real Obsidian workflows: browsing media, finding unreferenced files, detecting duplicates, managing quarantine, and aligning images in notes.
 
 ### Feature Overview
 
@@ -237,18 +246,19 @@ The older `===center=== ... ===` wrapper syntax is still supported for backward 
 #### Manual Installation
 1. Clone the repo or download the source.
 2. Run `npm ci` and `npm run build`.
-3. Copy `main.js`, `manifest.json`, and `styles.css` into `.obsidian/plugins/obsidian-media-toolkit/` inside your vault.
+3. Copy `main.js`, `manifest.json`, and `styles.css` into `.obsidian/plugins/media-toolkit/` inside your vault.
 4. Restart Obsidian and enable the plugin.
 
 ### Quick Start
 
 #### Keyboard Shortcuts
 
-| Feature | Shortcut |
-|---------|----------|
-| Open Media Library | `Ctrl/Cmd + Shift + M` |
-| Find Unreferenced Media | `Ctrl/Cmd + Shift + U` |
-| Open Quarantine Management | `Ctrl/Cmd + Shift + T` |
+The plugin intentionally ships without default hotkeys to avoid conflicts with each user's setup.
+
+You can assign your own hotkeys in `Settings -> Hotkeys` for:
+- `Media Library`
+- `Find Unreferenced Images`
+- `Trash Management`
 
 #### Command Palette
 - `Media Library`
@@ -272,7 +282,7 @@ The older `===center=== ... ===` wrapper syntax is still supported for backward 
 3. If you only want to manage one attachments folder, set the media-folder scope first.
 
 #### 2. Browse and Locate Media
-1. Run the `Media Library` command or press `Ctrl/Cmd + Shift + M`.
+1. Run the `Media Library` command. If you want a shortcut, assign one first in `Settings -> Hotkeys`.
 2. Use the search box to filter by filename or path fragment.
 3. Click a file to preview it. Right-click for path copy, link copy, note references, or opening the original file.
 
@@ -283,7 +293,7 @@ The older `===center=== ... ===` wrapper syntax is still supported for backward 
 4. GIF and SVG intentionally do not expose processing actions.
 
 #### 4. Find Unreferenced Files
-1. Run `Find Unreferenced Images` or press `Ctrl/Cmd + Shift + U`.
+1. Run `Find Unreferenced Images`. If you want a shortcut, assign one first in `Settings -> Hotkeys`.
 2. Review the scan results.
 3. Move confirmed unused files into quarantine instead of deleting them permanently right away.
 
@@ -294,7 +304,7 @@ The older `===center=== ... ===` wrapper syntax is still supported for backward 
 4. When quarantining a duplicate, the plugin rewrites note links that resolve to the removed copy so they point to the kept file first.
 
 #### 6. Manage Quarantine
-1. Run `Trash Management` or press `Ctrl/Cmd + Shift + T`.
+1. Run `Trash Management`. If you want a shortcut, assign one first in `Settings -> Hotkeys`.
 2. Review reference counts, file sizes, and type distribution.
 3. Use safe scan when you want to surface old, unreferenced, and larger files first.
 4. Restore files that were quarantined by mistake, and permanently delete only after review.
@@ -359,6 +369,14 @@ Note: PDF files support inline preview. Other document types use typed fallbacks
 ### Support
 
 Issues: https://github.com/teee32/obsidian-media-toolkit/issues
+
+### Privacy and disclosures
+
+- No account is required and no paid service is needed
+- No telemetry, no ads, and no Vault content is uploaded
+- No network requests are made; scanning, duplicate detection, and image processing run locally
+- The plugin only asks the operating system to open a local file when you explicitly use `Open original file`
+- The full source code is available in this repository
 
 ### License
 

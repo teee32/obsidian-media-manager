@@ -38,18 +38,21 @@ export async function updateLinksInVault(
 	let updatedCount = 0;
 
 	for (const file of markdownFiles) {
-		const content = await app.vault.read(file);
-		const newContent = updateLinksInContent(
-			app,
-			file,
-			content,
-			normalizedOldPath,
-			newFile,
-			forceDisambiguateBasename
-		);
+		let updated = false;
+		await app.vault.process(file, (content) => {
+			const newContent = updateLinksInContent(
+				app,
+				file,
+				content,
+				normalizedOldPath,
+				newFile,
+				forceDisambiguateBasename
+			);
+			updated = newContent !== content;
+			return newContent;
+		});
 
-		if (newContent !== content) {
-			await app.vault.modify(file, newContent);
+		if (updated) {
 			updatedCount++;
 		}
 	}

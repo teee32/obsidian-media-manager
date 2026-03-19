@@ -638,11 +638,11 @@ export class TrashManagementView extends ItemView {
 		);
 		if (!confirmed) return;
 
-		const results = await Promise.all(
-			selected.map(item =>
-				this.plugin.app.vault.delete(item.file).then(() => true).catch(() => false)
-			)
-		);
+			const results = await Promise.all(
+				selected.map(item =>
+					this.plugin.app.fileManager.trashFile(item.file).then(() => true).catch(() => false)
+				)
+			);
 
 		const deleted = results.filter(r => r).length;
 		new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(deleted)));
@@ -784,7 +784,7 @@ export class TrashManagementView extends ItemView {
 
 		if (confirmed) {
 			try {
-				await this.plugin.app.vault.delete(item.file);
+				await this.plugin.app.fileManager.trashFile(item.file);
 				new Notice(this.plugin.t('fileDeleted').replace('{name}', item.name));
 				this.trashItems = this.trashItems.filter(i => i.file.path !== item.file.path);
 				await this.renderView();
@@ -808,12 +808,12 @@ export class TrashManagementView extends ItemView {
 			this.plugin.t('confirmClearTrash').replace('{count}', String(this.trashItems.length))
 		);
 
-		if (confirmed) {
-			const results = await Promise.all(
-				this.trashItems.map(item =>
-					this.plugin.app.vault.delete(item.file).then(() => true).catch(() => false)
-				)
-			);
+			if (confirmed) {
+				const results = await Promise.all(
+					this.trashItems.map(item =>
+						this.plugin.app.fileManager.trashFile(item.file).then(() => true).catch(() => false)
+					)
+				);
 
 			const deleted = results.filter(r => r).length;
 			const errors = results.filter(r => !r).length;

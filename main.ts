@@ -16,6 +16,7 @@ import { MediaFileIndex } from './utils/fileWatcher';
 
 export default class ImageManagerPlugin extends Plugin {
 	settings: ImageManagerSettings = DEFAULT_SETTINGS;
+	private static readonly LEGACY_PLUGIN_ID = 'obsidian-media-toolkit';
 	private static readonly LEGACY_TRASH_FOLDER = '.obsidian-media-toolkit-trash';
 	// 缓存引用的图片以提高大型 Vault 的性能
 	private referencedImagesCache: Set<string> | null = null;
@@ -159,9 +160,6 @@ export default class ImageManagerPlugin extends Plugin {
 		// 添加设置标签页
 		this.addSettingTab(new SettingsTab(this.app, this));
 
-		// 注册快捷键
-		this.registerKeyboardShortcuts();
-
 		// 监听 Vault 文件变化，自动失效缓存并刷新视图
 		this.registerVaultEventListeners();
 
@@ -253,7 +251,7 @@ export default class ImageManagerPlugin extends Plugin {
 				// 检查文件修改时间
 				if (file.stat.mtime < cutoffTime) {
 					try {
-						await vault.delete(file);
+						await this.app.fileManager.trashFile(file);
 						deletedCount++;
 					} catch (error) {
 						console.error(`删除隔离文件失败: ${file.name}`, error);
@@ -267,41 +265,6 @@ export default class ImageManagerPlugin extends Plugin {
 		}
 
 		return deletedCount;
-	}
-
-	/**
-	 * 注册快捷键
-	 */
-	registerKeyboardShortcuts() {
-		// Ctrl+Shift+M 打开媒体库
-		this.addCommand({
-			id: 'open-media-library-shortcut',
-			name: this.t('cmdOpenMediaLibrary'),
-			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'm' }],
-			callback: () => {
-				this.openImageLibrary();
-			}
-		});
-
-		// Ctrl+Shift+U 查找未引用媒体
-		this.addCommand({
-			id: 'find-unreferenced-media-shortcut',
-			name: this.t('cmdFindUnreferencedMedia'),
-			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'u' }],
-			callback: () => {
-				this.findUnreferencedImages();
-			}
-		});
-
-		// Ctrl+Shift+T 打开隔离文件夹管理
-		this.addCommand({
-			id: 'open-trash-management-shortcut',
-			name: this.t('cmdOpenTrashManagement'),
-			hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 't' }],
-			callback: () => {
-				this.openTrashManagement();
-			}
-		});
 	}
 
 	/**
@@ -552,11 +515,11 @@ export default class ImageManagerPlugin extends Plugin {
 			return true;
 		}
 
-		const stylePaths = [
-			this.manifest.dir ? `${normalizeVaultPath(this.manifest.dir)}/styles.css` : '',
-			`.obsidian/plugins/${this.manifest.id}/styles.css`,
-			'styles.css'
-		].filter((path, index, arr) => path && arr.indexOf(path) === index);
+			const stylePaths = [
+				this.manifest.dir ? `${normalizeVaultPath(this.manifest.dir)}/styles.css` : '',
+				normalizeVaultPath(`${this.app.vault.configDir}/plugins/${this.manifest.id}/styles.css`),
+				'styles.css'
+			].filter((path, index, arr) => path && arr.indexOf(path) === index);
 
 		try {
 			for (const stylePath of stylePaths) {
@@ -593,7 +556,7 @@ export default class ImageManagerPlugin extends Plugin {
 				return true;
 			}
 		} catch (error) {
-			console.log('加载外部样式文件失败，使用内联样式', error);
+			console.warn('加载外部样式文件失败，使用内联样式', error);
 		}
 
 		return false;
@@ -1554,9 +1517,15 @@ export default class ImageManagerPlugin extends Plugin {
 	async loadSettings() {
 		try {
 			const loaded = await this.loadData();
-			const sanitized = loaded && typeof loaded === 'object'
+			const effectiveLoaded = this.shouldMigrateLegacySettings(loaded)
+				? await this.loadLegacyPluginData() ?? loaded
+				: loaded;
+			const migratedLegacyData = Boolean(
+				effectiveLoaded !== loaded && effectiveLoaded && typeof effectiveLoaded === 'object'
+			);
+			const sanitized = effectiveLoaded && typeof effectiveLoaded === 'object'
 				? Object.fromEntries(
-					Object.entries(loaded).filter(([k]) =>
+					Object.entries(effectiveLoaded).filter(([k]) =>
 						k !== '__proto__' && k !== 'constructor' && k !== 'prototype'
 					)
 				)
@@ -1613,9 +1582,45 @@ export default class ImageManagerPlugin extends Plugin {
 					: DEFAULT_SETTINGS.defaultProcessFormat,
 				watermarkText: typeof merged.watermarkText === 'string' ? merged.watermarkText : DEFAULT_SETTINGS.watermarkText
 			};
+			if (migratedLegacyData) {
+				await this.saveData(this.settings);
+			}
 		} catch (error) {
 			console.error('加载设置失败，使用默认设置:', error);
 			this.settings = { ...DEFAULT_SETTINGS };
+		}
+	}
+
+	private shouldMigrateLegacySettings(loaded: unknown): boolean {
+		if (loaded == null) {
+			return true;
+		}
+		if (typeof loaded !== 'object' || Array.isArray(loaded)) {
+			return false;
+		}
+		return Object.keys(loaded).length === 0;
+	}
+
+	private async loadLegacyPluginData(): Promise<Record<string, unknown> | null> {
+		const legacyDataPath = normalizeVaultPath(
+			`${this.app.vault.configDir}/plugins/${ImageManagerPlugin.LEGACY_PLUGIN_ID}/data.json`
+		);
+		if (!legacyDataPath) {
+			return null;
+		}
+
+		try {
+			if (!await this.app.vault.adapter.exists(legacyDataPath)) {
+				return null;
+			}
+			const raw = await this.app.vault.adapter.read(legacyDataPath);
+			const parsed = JSON.parse(raw);
+			return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+				? parsed as Record<string, unknown>
+				: null;
+		} catch (error) {
+			console.warn('读取旧插件配置失败，跳过迁移:', error);
+			return null;
 		}
 	}
 
@@ -2109,9 +2114,9 @@ export default class ImageManagerPlugin extends Plugin {
 		const { vault } = this.app;
 
 		if (!this.settings.useTrashFolder) {
-			// 直接删除
+			// 按用户的 Obsidian 删除偏好执行删除
 			try {
-				await vault.delete(file);
+				await this.app.fileManager.trashFile(file);
 				return true;
 			} catch (error) {
 				console.error('删除文件失败:', error);
@@ -2194,10 +2199,8 @@ export default class ImageManagerPlugin extends Plugin {
 
 	// 彻底删除隔离文件夹中的文件
 	async permanentlyDeleteFile(file: TFile): Promise<boolean> {
-		const { vault } = this.app;
-
 		try {
-			await vault.delete(file);
+			await this.app.fileManager.trashFile(file);
 			new Notice(this.t('fileDeleted', { name: file.name }));
 			return true;
 		} catch (error) {

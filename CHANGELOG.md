@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.19] - 2026-03-19
+
+### Changed
+- 将插件 `id` 调整为 `media-toolkit`，同步更新手动安装目录和社区发布元数据
+- 发布流程改为使用与 `manifest.json` 完全一致的纯版本号 tag，并补充 `versions.json`
+- README 补充隐私与披露说明，移除默认快捷键说明，改为由用户自行分配
+
+### Fixed
+- 改用 `FileManager.trashFile()` 执行删除，遵循 Obsidian 的删除偏好设置
+- 样式文件加载改用 `Vault.configDir`，兼容自定义配置目录
+- 链接批量改写改用 `Vault.process()`，避免直接使用 `Vault.modify()`
+- 新增旧插件 `obsidian-media-toolkit` 配置数据迁移，降低改 `id` 后的升级影响
+
+---
+
 ## [1.1.18] - 2026-03-18
 
 ### Fixed
