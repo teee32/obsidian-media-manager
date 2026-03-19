@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.21] - 2026-03-19
+
+### Fixed
+- 修复未被 metadata cache 解析到的 Wiki basename 链接改写：在必要时回退遍历 vault 文件，确保隔离/移动同名附件后仍能把目标链接更新到正确文件
+- 补充对应测试用例，覆盖 unresolved basename 链接的重写路径
+
+---
+
 ## [1.1.20] - 2026-03-19
 
 ### Changed
