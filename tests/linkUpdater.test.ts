@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { updateLinksInContent } from '../utils/linkUpdater';
 
 function buildApp(
-	resolve: (linkPath: string, sourcePath: string) => string | null
+	resolve: (linkPath: string, sourcePath: string) => string | null,
+	filePaths: string[] = []
 ): any {
 	return {
 		metadataCache: {
@@ -11,6 +12,9 @@ function buildApp(
 				const path = resolve(linkPath, sourcePath);
 				return path ? { path } : null;
 			}
+		},
+		vault: {
+			getFiles: () => filePaths.map(path => makeFile(path))
 		}
 	};
 }
@@ -65,6 +69,22 @@ describe('updateLinksInContent', () => {
 
 		const updated = updateLinksInContent(app, sourceFile, content, oldPath, newFile);
 		expect(updated).toBe(content);
+	});
+
+	it('rewrites unresolved wiki basename links when deterministic vault lookup resolves to old file', () => {
+		const app = buildApp(
+			() => null,
+			[
+				'attachments/moon-a.jpg',
+				'attachments/moon-b.jpg',
+				'other/moon-a.jpg'
+			]
+		);
+		const sourceFile = makeFile('notes/wiki.md');
+		const content = '![[moon-a.jpg]]\n';
+
+		const updated = updateLinksInContent(app, sourceFile, content, oldPath, newFile);
+		expect(updated).toBe('![[moon-b.jpg]]\n');
 	});
 
 	it('rewrites unresolved deterministic relative markdown links', () => {

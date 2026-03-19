@@ -76,7 +76,7 @@ export function updateLinksInContent(
 	content = content.replace(WIKI_LINK_PATTERN, (fullMatch, prefix, linktext, alias = '', suffix) => {
 		const parsed = parseLinktext(linktext);
 		const resolvedPath = resolveLinkDestination(app, parsed.path, sourceFile.path);
-		if (!shouldRewriteLink(parsed.path, resolvedPath, oldPath, sourceFile.path)) {
+		if (!shouldRewriteLink(app, parsed.path, resolvedPath, oldPath, sourceFile.path)) {
 			return fullMatch;
 		}
 
@@ -93,7 +93,7 @@ export function updateLinksInContent(
 	content = content.replace(MARKDOWN_LINK_PATTERN, (fullMatch, prefix, destination, suffix) => {
 		const parsed = parseMarkdownDestination(destination);
 		const resolvedPath = resolveLinkDestination(app, parsed.path, sourceFile.path);
-		if (!shouldRewriteLink(parsed.path, resolvedPath, oldPath, sourceFile.path)) {
+		if (!shouldRewriteLink(app, parsed.path, resolvedPath, oldPath, sourceFile.path)) {
 			return fullMatch;
 		}
 
@@ -167,7 +167,13 @@ function formatMarkdownDestination(linkPath: string, suffix: string, isWrapped: 
 	return combined.replace(/ /g, '\\ ');
 }
 
-function shouldRewriteLink(rawPath: string, resolvedPath: string, oldPath: string, sourcePath: string): boolean {
+function shouldRewriteLink(
+	app: App,
+	rawPath: string,
+	resolvedPath: string,
+	oldPath: string,
+	sourcePath: string
+): boolean {
 	if (resolvedPath === oldPath) {
 		return true;
 	}
@@ -175,9 +181,9 @@ function shouldRewriteLink(rawPath: string, resolvedPath: string, oldPath: strin
 		return false;
 	}
 
-	// 兜底仅用于 metadataCache 无法解析时，且 rawPath 在语义上可唯一定位。
-	// 对裸文件名不做兜底，避免同名文件误改。
-	return resolveDeterministicPath(rawPath, sourcePath) === oldPath;
+	// 兜底仅用于 metadataCache 无法解析时。
+	// 对裸文件名仅在 Vault 文件列表可给出确定优先级时才会改写。
+	return resolveDeterministicPath(app, rawPath, sourcePath) === oldPath;
 }
 
 function composeReplacementPath(
@@ -207,7 +213,7 @@ function composeReplacementPath(
 	}
 }
 
-function resolveDeterministicPath(rawPath: string, sourcePath: string): string {
+function resolveDeterministicPath(app: App, rawPath: string, sourcePath: string): string {
 	let candidate = String(rawPath || '').trim();
 	if (!candidate) {
 		return '';
@@ -234,8 +240,56 @@ function resolveDeterministicPath(rawPath: string, sourcePath: string): string {
 		return normalized;
 	}
 
-	// basename 无法唯一确定目标
-	return '';
+	return resolveDeterministicBasename(app, normalized, sourcePath);
+}
+
+function resolveDeterministicBasename(app: App, basename: string, sourcePath: string): string {
+	const listFiles = (app as Partial<App>)?.vault?.getFiles;
+	if (typeof listFiles !== 'function') {
+		return '';
+	}
+
+	const normalizedBasename = String(basename || '').trim().toLowerCase();
+	if (!normalizedBasename) {
+		return '';
+	}
+
+	const sourceDir = normalizeVaultPath(getParentPath(sourcePath)).toLowerCase();
+	const candidates = listFiles.call(app.vault)
+		.map(file => normalizeVaultPath(file.path).toLowerCase())
+		.filter(path => getFileNameFromPath(path).toLowerCase() === normalizedBasename);
+
+	if (candidates.length === 0) {
+		return '';
+	}
+
+	const ranked = [...candidates].sort((a, b) => {
+		const dirA = normalizeVaultPath(getParentPath(a)).toLowerCase();
+		const dirB = normalizeVaultPath(getParentPath(b)).toLowerCase();
+		const sameDirA = dirA === sourceDir ? 0 : 1;
+		const sameDirB = dirB === sourceDir ? 0 : 1;
+		if (sameDirA !== sameDirB) {
+			return sameDirA - sameDirB;
+		}
+
+		const relA = toRelativeVaultPath(sourcePath, a);
+		const relB = toRelativeVaultPath(sourcePath, b);
+		const segA = relA ? relA.split('/').filter(Boolean).length : Number.MAX_SAFE_INTEGER;
+		const segB = relB ? relB.split('/').filter(Boolean).length : Number.MAX_SAFE_INTEGER;
+		if (segA !== segB) {
+			return segA - segB;
+		}
+
+		const depthA = a.split('/').filter(Boolean).length;
+		const depthB = b.split('/').filter(Boolean).length;
+		if (depthA !== depthB) {
+			return depthA - depthB;
+		}
+
+		return a.localeCompare(b);
+	});
+
+	return ranked[0] || '';
 }
 
 function resolveRelativePath(sourceDir: string, relativePath: string): string {
