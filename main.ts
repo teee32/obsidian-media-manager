@@ -327,7 +327,7 @@ export default class ImageManagerPlugin extends Plugin {
 		this.indexedTrashFolder = trashFolder;
 
 		if (needsRescan) {
-			await this.fileIndex.fullScan();
+			this.fileIndex.fullScan();
 		}
 	}
 
@@ -409,7 +409,7 @@ export default class ImageManagerPlugin extends Plugin {
 		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_TRASH_MANAGEMENT)) {
 			const view = leaf.view;
 			if (view instanceof TrashManagementView) {
-				tasks.push(view.loadTrashItems());
+				tasks.push(Promise.resolve().then(() => view.loadTrashItems()));
 			}
 		}
 
@@ -850,7 +850,7 @@ export default class ImageManagerPlugin extends Plugin {
 
 	// 查找未引用的图片
 	async findUnreferenced(): Promise<TFile[]> {
-		const allImages = await this.getAllImageFiles();
+		const allImages = this.getAllImageFiles();
 		const referenced = await this.getReferencedImages();
 
 		return allImages.filter(file => {

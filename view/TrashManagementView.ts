@@ -55,7 +55,7 @@ export class TrashManagementView extends ItemView {
 			return;
 		}
 		this.contentEl.addClass('trash-management-view');
-		await this.loadTrashItems();
+		this.loadTrashItems();
 	}
 
 	onClose(): Promise<void> {
@@ -66,7 +66,7 @@ export class TrashManagementView extends ItemView {
 	/**
 	 * 加载隔离文件夹中的文件
 	 */
-	async loadTrashItems() {
+	loadTrashItems(): void {
 		if (!this.contentEl) return;
 		if (this.isLoading) return;
 		this.isLoading = true;
@@ -263,7 +263,7 @@ export class TrashManagementView extends ItemView {
 		const refreshBtn = actions.createEl('button', { cls: 'refresh-button' });
 		setIcon(refreshBtn, 'refresh-cw');
 		refreshBtn.addEventListener('click', () => {
-			void this.loadTrashItems();
+			this.loadTrashItems();
 		});
 		refreshBtn.title = this.plugin.t('refresh');
 
@@ -523,7 +523,7 @@ export class TrashManagementView extends ItemView {
 				? this.plugin.fileIndex.getFiles()
 					.map(e => this.app.vault.getAbstractFileByPath(e.path))
 					.filter((f): f is TFile => f instanceof TFile)
-				: await this.plugin.getAllImageFiles();
+				: this.plugin.getAllImageFiles();
 
 			const trashPath = normalizeVaultPath(this.plugin.settings.trashFolder) || '';
 			const candidates: TFile[] = [];
@@ -567,7 +567,7 @@ export class TrashManagementView extends ItemView {
 			}
 
 			new Notice(this.plugin.t('safeScanComplete', { count: moved }));
-			await this.loadTrashItems();
+			this.loadTrashItems();
 		} catch (error) {
 			console.error('安全扫描失败:', error);
 			new Notice(this.plugin.t('safeScanFailed'));
@@ -614,7 +614,7 @@ export class TrashManagementView extends ItemView {
 		}
 
 		new Notice(this.plugin.t('batchRestoreComplete', { count: restored }));
-		await this.loadTrashItems();
+		this.loadTrashItems();
 	}
 
 	/**
@@ -632,15 +632,15 @@ export class TrashManagementView extends ItemView {
 		);
 		if (!confirmed) return;
 
-			const results = await Promise.all(
-				selected.map(item =>
-					this.plugin.app.fileManager.trashFile(item.file).then(() => true).catch(() => false)
-				)
-			);
+		const results = await Promise.all(
+			selected.map(item =>
+				this.plugin.app.fileManager.trashFile(item.file).then(() => true).catch(() => false)
+			)
+		);
 
 		const deleted = results.filter(r => r).length;
 		new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(deleted)));
-		await this.loadTrashItems();
+		this.loadTrashItems();
 	}
 
 	/**
@@ -806,12 +806,12 @@ export class TrashManagementView extends ItemView {
 			this.plugin.t('confirmClearTrash').replace('{count}', String(this.trashItems.length))
 		);
 
-			if (confirmed) {
-				const results = await Promise.all(
-					this.trashItems.map(item =>
-						this.plugin.app.fileManager.trashFile(item.file).then(() => true).catch(() => false)
-					)
-				);
+		if (confirmed) {
+			const results = await Promise.all(
+				this.trashItems.map(item =>
+					this.plugin.app.fileManager.trashFile(item.file).then(() => true).catch(() => false)
+				)
+			);
 
 			const deleted = results.filter(r => r).length;
 			const errors = results.filter(r => !r).length;
@@ -823,7 +823,7 @@ export class TrashManagementView extends ItemView {
 				new Notice(this.plugin.t('batchDeleteComplete').replace('{count}', String(errors)) + ' (' + this.plugin.t('error') + ')');
 			}
 
-			await this.loadTrashItems();
+			this.loadTrashItems();
 		}
 	}
 

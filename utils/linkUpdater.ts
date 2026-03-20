@@ -244,8 +244,8 @@ function resolveDeterministicPath(app: App, rawPath: string, sourcePath: string)
 }
 
 function resolveDeterministicBasename(app: App, basename: string, sourcePath: string): string {
-	const listFiles = (app as Partial<App>)?.vault?.getFiles;
-	if (typeof listFiles !== 'function') {
+	const vault = (app as Partial<App>)?.vault;
+	if (!vault || typeof vault.getFiles !== 'function') {
 		return '';
 	}
 
@@ -255,7 +255,7 @@ function resolveDeterministicBasename(app: App, basename: string, sourcePath: st
 	}
 
 	const sourceDir = normalizeVaultPath(getParentPath(sourcePath)).toLowerCase();
-	const candidates = listFiles.call(app.vault)
+	const candidates = vault.getFiles()
 		.map(file => normalizeVaultPath(file.path).toLowerCase())
 		.filter(path => getFileNameFromPath(path).toLowerCase() === normalizedBasename);
 

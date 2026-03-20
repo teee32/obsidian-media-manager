@@ -97,7 +97,7 @@ export class ImageLibraryView extends ItemView {
 				.map(e => this.app.vault.getAbstractFileByPath(e.path))
 				.filter((f): f is TFile => f instanceof TFile);
 		} else {
-			imageFiles = await this.plugin.getAllImageFiles();
+			imageFiles = this.plugin.getAllImageFiles();
 		}
 
 		// 过滤图片文件夹（如果设置了）
