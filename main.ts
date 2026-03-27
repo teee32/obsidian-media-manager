@@ -88,7 +88,6 @@ export default class ImageManagerPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-image-library',
 			name: this.t('cmdImageLibrary'),
-			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'm' }],
 			checkCallback: (checking: boolean) => {
 				if (checking) return true;
 				void this.openImageLibrary();
@@ -98,7 +97,6 @@ export default class ImageManagerPlugin extends Plugin {
 		this.addCommand({
 			id: 'find-unreferenced-images',
 			name: this.t('cmdFindUnreferencedImages'),
-			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'u' }],
 			checkCallback: (checking: boolean) => {
 				if (checking) return true;
 				void this.findUnreferencedImages();
@@ -129,7 +127,6 @@ export default class ImageManagerPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-trash-management',
 			name: this.t('cmdTrashManagement'),
-			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 't' }],
 			checkCallback: (checking: boolean) => {
 				if (checking) return true;
 				void this.openTrashManagement();

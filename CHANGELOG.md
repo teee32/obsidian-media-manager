@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.27] - 2026-03-27
+
+### Fixed
+- 移除媒体库、未引用媒体扫描和隔离管理命令的默认快捷键，避免与用户现有快捷键或 Obsidian 默认绑定冲突，满足最新一轮 ObsidianReviewBot 的 `Required` 要求
+
+---
+
 ## [1.1.26] - 2026-03-27
 
 ### Changed
