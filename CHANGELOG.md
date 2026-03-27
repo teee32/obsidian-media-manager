@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.26] - 2026-03-27
+
+### Changed
+- 统一放大全插件按钮图标尺寸，覆盖工具栏、列表操作、搜索控件、重复检测操作和仪表盘图标
+- 微调纯图标按钮的直径与间距，改善低对比暖色主题下的可辨识度
+
+---
+
 ## [1.1.25] - 2026-03-27
 
 ### Changed

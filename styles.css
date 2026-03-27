@@ -3465,3 +3465,47 @@
 		grid-column: auto;
 	}
 }
+
+/* ===== v4.3: Button Icon Sizing ===== */
+.refresh-button svg,
+.action-button svg,
+.toolbar-button svg,
+.toolbar-btn svg,
+.duplicate-action-button svg,
+.duplicate-quarantine-btn svg,
+.order-button svg,
+.clear-search svg,
+.search-icon svg {
+	width: 18px;
+	height: 18px;
+	stroke-width: 1.9;
+}
+
+.item-button,
+.image-card-action {
+	width: 42px;
+	min-width: 42px;
+	height: 42px;
+	padding: 0;
+}
+
+.item-button svg,
+.image-card-action svg {
+	width: 19px;
+	height: 19px;
+	stroke-width: 1.95;
+}
+
+.button-with-label,
+.toolbar-button,
+.toolbar-btn,
+.duplicate-action-button,
+.duplicate-quarantine-btn {
+	gap: 9px;
+}
+
+.dashboard-icon svg {
+	width: 18px;
+	height: 18px;
+	stroke-width: 1.9;
+}
