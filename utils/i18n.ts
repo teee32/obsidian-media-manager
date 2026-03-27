@@ -19,6 +19,11 @@ export interface Translations {
 	mediaLibrary: string;
 	unreferencedMedia: string;
 	trashManagement: string;
+	vaultMediaWorkspace: string;
+	reviewQueue: string;
+	duplicateReview: string;
+	quarantineWorkspace: string;
+	allVault: string;
 
 	// 媒体库
 	totalMediaFiles: string;
@@ -282,6 +287,11 @@ const zh: Translations = {
 	mediaLibrary: '媒体库',
 	unreferencedMedia: '未引用媒体',
 	trashManagement: '隔离文件管理',
+	vaultMediaWorkspace: 'Vault 媒体工作台',
+	reviewQueue: '待审查队列',
+	duplicateReview: '重复项审查',
+	quarantineWorkspace: '隔离区工作台',
+	allVault: '整个仓库',
 
 	// 媒体库
 	totalMediaFiles: '共 {count} 个媒体文件',
@@ -545,6 +555,11 @@ const en: Translations = {
 	mediaLibrary: 'Media Library',
 	unreferencedMedia: 'Unreferenced Media',
 	trashManagement: 'Trash Management',
+	vaultMediaWorkspace: 'Vault Media Workspace',
+	reviewQueue: 'Review Queue',
+	duplicateReview: 'Duplicate Review',
+	quarantineWorkspace: 'Quarantine Workspace',
+	allVault: 'Entire Vault',
 
 	// Media Library
 	totalMediaFiles: '{count} media files',

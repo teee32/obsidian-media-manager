@@ -62,6 +62,7 @@ export class DuplicateDetectionView extends ItemView {
 		this.contentEl.empty();
 
 		this.renderHeader();
+		this.renderWorkspaceSummary();
 
 		if (this.isScanning) {
 			this.renderProgress();
@@ -114,6 +115,44 @@ export class DuplicateDetectionView extends ItemView {
 		}
 	}
 
+	private renderWorkspaceSummary() {
+		const redundantFiles = this.duplicateGroups.reduce(
+			(sum, group) => sum + Math.max(0, group.files.length - 1),
+			0
+		);
+		const summary = this.contentEl.createDiv({ cls: 'workspace-summary-grid workspace-summary-grid-compact' });
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('duplicateReview'),
+			`${this.plugin.settings.duplicateThreshold}%`,
+			this.plugin.t('similarityThreshold', { value: this.plugin.settings.duplicateThreshold })
+		);
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('duplicateDetection'),
+			String(this.duplicateGroups.length),
+			this.plugin.t('duplicateGroupsFound', {
+				groups: this.duplicateGroups.length,
+				files: redundantFiles
+			})
+		);
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('files'),
+			String(redundantFiles),
+			this.isScanning ? this.plugin.t('processing') : this.plugin.t('quarantineAllDuplicates')
+		);
+	}
+
+	private createSummaryCard(container: HTMLElement, label: string, value: string, note?: string) {
+		const card = container.createDiv({ cls: 'workspace-summary-card' });
+		card.createDiv({ cls: 'workspace-summary-label', text: label });
+		card.createDiv({ cls: 'workspace-summary-value', text: value });
+		if (note) {
+			card.createDiv({ cls: 'workspace-summary-note', text: note });
+		}
+	}
+
 	/**
 	 * 渲染头部
 	 */
@@ -121,6 +160,14 @@ export class DuplicateDetectionView extends ItemView {
 		const header = this.contentEl.createDiv({ cls: 'duplicate-header' });
 		const headerMain = header.createDiv({ cls: 'view-header-main' });
 		const titleBlock = headerMain.createDiv({ cls: 'view-header-copy' });
+		const kicker = titleBlock.createDiv({ cls: 'view-kicker-row' });
+		kicker.createSpan({ cls: 'view-kicker', text: this.plugin.t('duplicateReview') });
+		kicker.createSpan({
+			cls: 'view-inline-badge',
+			text: this.plugin.t('similarityThreshold', {
+				value: this.plugin.settings.duplicateThreshold
+			})
+		});
 		titleBlock.createEl('h2', { text: this.plugin.t('duplicateDetection') });
 
 		const desc = titleBlock.createDiv({ cls: 'duplicate-header-description' });

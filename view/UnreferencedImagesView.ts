@@ -107,6 +107,7 @@ export class UnreferencedImagesView extends ItemView {
 
 		// 创建头部
 		this.renderHeader();
+		this.renderWorkspaceSummary();
 
 		if (this.unreferencedImages.length === 0) {
 			this.contentEl.createDiv({
@@ -137,15 +138,61 @@ export class UnreferencedImagesView extends ItemView {
 		}
 	}
 
+	private renderWorkspaceSummary() {
+		const totalSize = this.unreferencedImages.reduce((sum, img) => sum + img.size, 0);
+		const summary = this.contentEl.createDiv({ cls: 'workspace-summary-grid workspace-summary-grid-compact' });
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('reviewQueue'),
+			String(this.unreferencedImages.length),
+			this.plugin.t('unreferencedMedia')
+		);
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('totalSize'),
+			formatFileSize(totalSize),
+			this.plugin.t('deleteToTrash')
+		);
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('trashFolderPath'),
+			this.plugin.settings.trashFolder,
+			this.plugin.t('copyAllPaths')
+		);
+	}
+
+	private createSummaryCard(container: HTMLElement, label: string, value: string, note?: string) {
+		const card = container.createDiv({ cls: 'workspace-summary-card' });
+		card.createDiv({ cls: 'workspace-summary-label', text: label });
+		card.createDiv({ cls: 'workspace-summary-value', text: value });
+		if (note) {
+			card.createDiv({ cls: 'workspace-summary-note', text: note });
+		}
+	}
+
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'unreferenced-header' });
 		const headerMain = header.createDiv({ cls: 'view-header-main' });
 		const titleBlock = headerMain.createDiv({ cls: 'view-header-copy' });
+		const kicker = titleBlock.createDiv({ cls: 'view-kicker-row' });
+		kicker.createSpan({ cls: 'view-kicker', text: this.plugin.t('reviewQueue') });
+		kicker.createSpan({ cls: 'view-inline-badge', text: this.plugin.t('trashManagement') });
 
 		titleBlock.createEl('h2', { text: this.plugin.t('unreferencedMedia') });
 
 		const desc = titleBlock.createDiv({ cls: 'header-description' });
 		desc.createSpan({ text: this.plugin.t('unreferencedDesc') });
+		desc.createSpan({
+			cls: 'view-inline-badge',
+			text: this.plugin.t('unreferencedFound').replace('{count}', String(this.unreferencedImages.length))
+		});
+		if (this.unreferencedImages.length > 0) {
+			const totalSize = this.unreferencedImages.reduce((sum, img) => sum + img.size, 0);
+			desc.createSpan({
+				cls: 'view-inline-badge',
+				text: this.plugin.t('totalSizeLabel').replace('{size}', formatFileSize(totalSize))
+			});
+		}
 
 		// 操作按钮
 		const actions = header.createDiv({ cls: 'view-header-controls' });

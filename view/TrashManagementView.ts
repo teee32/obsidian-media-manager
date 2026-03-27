@@ -254,10 +254,27 @@ export class TrashManagementView extends ItemView {
 		const header = this.contentEl.createDiv({ cls: 'trash-header' });
 		const headerMain = header.createDiv({ cls: 'view-header-main' });
 		const titleBlock = headerMain.createDiv({ cls: 'view-header-copy' });
+		const kicker = titleBlock.createDiv({ cls: 'view-kicker-row' });
+		kicker.createSpan({ cls: 'view-kicker', text: this.plugin.t('quarantineWorkspace') });
+		kicker.createSpan({
+			cls: 'view-inline-badge',
+			text: this.plugin.settings.trashFolder || this.plugin.t('trashManagement')
+		});
 		titleBlock.createEl('h2', { text: this.plugin.t('trashManagement') });
 
 		const desc = titleBlock.createDiv({ cls: 'header-description' });
 		desc.createSpan({ text: this.plugin.t('trashManagementDesc') });
+		desc.createSpan({
+			cls: 'view-inline-badge',
+			text: this.plugin.t('filesInTrash').replace('{count}', String(this.trashItems.length))
+		});
+		if (this.trashItems.length > 0) {
+			const totalSize = this.trashItems.reduce((sum, item) => sum + item.size, 0);
+			desc.createSpan({
+				cls: 'view-inline-badge',
+				text: this.plugin.t('totalSize').replace('{size}', formatFileSize(totalSize))
+			});
+		}
 
 		const actions = header.createDiv({ cls: 'view-header-controls' });
 
@@ -317,9 +334,9 @@ export class TrashManagementView extends ItemView {
 		setIcon(typeIcon, 'pie-chart');
 		const typeParts: string[] = [];
 		for (const [type, count] of Object.entries(stats.byType)) {
-			typeParts.push(`${type}: ${count}`);
+			typeParts.push(`${type.toUpperCase()}: ${count}`);
 		}
-		cardType.createDiv({ cls: 'dashboard-value', text: typeParts.join(', ') || '-' });
+		cardType.createDiv({ cls: 'dashboard-value dashboard-value-wrap', text: typeParts.join(' · ') || '-' });
 		cardType.createDiv({ cls: 'dashboard-label', text: this.plugin.t('typeDistribution') });
 
 		// 卡片4：未引用率

@@ -135,6 +135,7 @@ export class ImageLibraryView extends ItemView {
 
 		// 创建头部（在获取数据之后渲染）
 		this.renderHeader();
+		this.renderWorkspaceSummary();
 
 		// 创建搜索框
 		this.renderSearchBox();
@@ -169,6 +170,108 @@ export class ImageLibraryView extends ItemView {
 		}
 
 		return Promise.resolve();
+	}
+
+	private renderWorkspaceSummary() {
+		const summary = this.contentEl.createDiv({ cls: 'workspace-summary-grid' });
+		const totalNote = this.searchQuery
+			? this.plugin.t('searchResults').replace('{count}', String(this.filteredImages.length))
+			: this.plugin.t('mediaFolder');
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('mediaLibrary'),
+			String(this.filteredImages.length),
+			totalNote
+		);
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('pageSize'),
+			String(this.pageSize),
+			this.plugin.settings.thumbnailSize.toUpperCase()
+		);
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('defaultSortBy'),
+			this.getSortLabel(this.plugin.settings.sortBy),
+			this.getSortOrderLabel(this.plugin.settings.sortOrder)
+		);
+		this.createSummaryCard(
+			summary,
+			this.plugin.t('mediaFolder'),
+			this.plugin.settings.imageFolder || this.plugin.t('allVault'),
+			this.isSelectionMode
+				? this.plugin.t('selectFiles').replace('{count}', String(this.selectedFiles.size))
+				: this.plugin.t('multiSelectMode')
+		);
+	}
+
+	private createSummaryCard(container: HTMLElement, label: string, value: string, note?: string) {
+		const card = container.createDiv({ cls: 'workspace-summary-card' });
+		card.createDiv({ cls: 'workspace-summary-label', text: label });
+		card.createDiv({ cls: 'workspace-summary-value', text: value });
+		if (note) {
+			card.createDiv({ cls: 'workspace-summary-note', text: note });
+		}
+	}
+
+	private getSortLabel(sortBy: 'name' | 'date' | 'size'): string {
+		switch (sortBy) {
+			case 'date':
+				return this.plugin.t('sortByDate');
+			case 'size':
+				return this.plugin.t('sortBySize');
+			case 'name':
+			default:
+				return this.plugin.t('sortByName');
+		}
+	}
+
+	private getSortOrderLabel(sortOrder: 'asc' | 'desc'): string {
+		return sortOrder === 'asc' ? this.plugin.t('sortAsc') : this.plugin.t('sortDesc');
+	}
+
+	private getMediaLabel(file: TFile): string {
+		const mediaType = getMediaType(file.name);
+		if (mediaType === 'document') {
+			return getDocumentDisplayLabel(file.name);
+		}
+
+		const dot = file.name.lastIndexOf('.');
+		if (dot !== -1 && dot < file.name.length - 1) {
+			return file.name.slice(dot + 1).toUpperCase();
+		}
+
+		if (mediaType) {
+			return mediaType.toUpperCase();
+		}
+
+		return 'FILE';
+	}
+
+	private copyToClipboard(text: string, successMessage: string) {
+		void navigator.clipboard.writeText(text).then(() => {
+			new Notice(successMessage);
+		}).catch((error) => {
+			console.error('复制到剪贴板失败:', error);
+			new Notice(this.plugin.t('error'));
+		});
+	}
+
+	private createImageActionButton(
+		container: HTMLElement,
+		icon: string,
+		title: string,
+		onClick: () => void | Promise<unknown>
+	) {
+		const button = container.createEl('button', { cls: 'image-card-action', attr: { 'aria-label': title } });
+		setIcon(button, icon);
+		button.title = title;
+		button.addEventListener('click', (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			void onClick();
+		});
+		return button;
 	}
 
 	/**
@@ -411,6 +514,12 @@ export class ImageLibraryView extends ItemView {
 		const header = this.contentEl.createDiv({ cls: 'image-library-header' });
 		const headerMain = header.createDiv({ cls: 'view-header-main' });
 		const titleBlock = headerMain.createDiv({ cls: 'view-header-copy' });
+		const kicker = titleBlock.createDiv({ cls: 'view-kicker-row' });
+		kicker.createSpan({ cls: 'view-kicker', text: this.plugin.t('vaultMediaWorkspace') });
+		kicker.createSpan({
+			cls: 'view-inline-badge',
+			text: this.plugin.settings.imageFolder || this.plugin.t('allVault')
+		});
 
 		titleBlock.createEl('h2', { text: this.plugin.t('mediaLibrary') });
 
@@ -636,6 +745,15 @@ export class ImageLibraryView extends ItemView {
 
 		const file = image.file;
 		this.renderMediaThumbnail(imgContainer, file, image.name);
+		const chrome = imgContainer.createDiv({ cls: 'image-item-chrome' });
+		chrome.createSpan({
+			cls: 'image-item-media-badge',
+			text: this.getMediaLabel(file)
+		});
+		const previewHint = imgContainer.createDiv({ cls: 'image-item-preview-hint' });
+		const previewIcon = previewHint.createDiv({ cls: 'image-item-preview-icon' });
+		setIcon(previewIcon, 'maximize-2');
+		previewHint.createSpan({ text: this.plugin.t('preview') });
 
 		imgContainer.addEventListener('click', () => {
 			if (this.isSelectionMode) {
@@ -674,6 +792,17 @@ export class ImageLibraryView extends ItemView {
 				cls: 'image-date',
 				text: new Date(image.modified).toLocaleDateString()
 			});
+			info.createDiv({ cls: 'image-path', text: image.path });
+			const actions = info.createDiv({ cls: 'image-card-actions' });
+			this.createImageActionButton(actions, 'search', this.plugin.t('findInNotes'), () => (
+				this.plugin.openImageInNotes(image.file)
+			));
+			this.createImageActionButton(actions, 'copy', this.plugin.t('copyLink'), () => {
+				this.copyToClipboard(this.plugin.getStableWikiLink(image.file), this.plugin.t('linkCopied'));
+			});
+			this.createImageActionButton(actions, 'external-link', this.plugin.t('openOriginal'), () => (
+				this.plugin.openOriginalFile(image.file)
+			));
 		}
 	}
 
