@@ -3151,13 +3151,22 @@
 }
 
 .image-card-actions {
+	display: flex;
+	gap: 10px;
 	padding-top: 4px;
 }
 
 .image-card-action {
-	width: 34px;
-	height: 34px;
+	width: 40px;
+	height: 40px;
+	padding: 0;
 	border-radius: 999px;
+}
+
+.image-card-action svg {
+	width: 18px;
+	height: 18px;
+	stroke-width: 1.9;
 }
 
 .unreferenced-item,

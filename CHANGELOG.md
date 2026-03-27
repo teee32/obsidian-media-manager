@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.25] - 2026-03-27
+
+### Changed
+- 恢复默认快捷键：`Ctrl/Cmd + Shift + M/U/T` 分别用于媒体库、未引用媒体扫描和隔离管理
+- 放大媒体卡片底部圆形操作按钮中的图标，并微调按钮尺寸与间距，提升可见性和点击感
+
+---
+
 ## [1.1.24] - 2026-03-27
 
 ### Changed
