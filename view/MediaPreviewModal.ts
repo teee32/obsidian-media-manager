@@ -150,14 +150,16 @@ export class MediaPreviewModal extends Modal {
 		const file = this.allFiles[this.currentIndex];
 		const infoBar = contentEl.createDiv({ cls: 'preview-info-bar' });
 
-		// 文件名
-		infoBar.createDiv({ cls: 'info-name', text: file.name });
+		// 文件信息
+		const infoMeta = infoBar.createDiv({ cls: 'info-meta' });
+		infoMeta.createDiv({ cls: 'info-name', text: file.name });
+		infoMeta.createDiv({ cls: 'info-path', text: file.path });
 
 		// 操作按钮
 		const actions = infoBar.createDiv({ cls: 'info-actions' });
 
 		// 复制路径
-		const copyPathBtn = actions.createEl('button');
+		const copyPathBtn = actions.createEl('button', { cls: 'preview-action-button' });
 		copyPathBtn.textContent = this.plugin.t('copyPathBtn');
 		copyPathBtn.addEventListener('click', () => {
 			void navigator.clipboard.writeText(file.path).then(() => {
@@ -169,7 +171,7 @@ export class MediaPreviewModal extends Modal {
 		});
 
 		// 复制链接
-		const copyLinkBtn = actions.createEl('button');
+		const copyLinkBtn = actions.createEl('button', { cls: 'preview-action-button' });
 		copyLinkBtn.textContent = this.plugin.t('copyLinkBtn');
 		copyLinkBtn.addEventListener('click', () => {
 			const link = this.plugin.getStableWikiLink(file);
@@ -182,14 +184,14 @@ export class MediaPreviewModal extends Modal {
 		});
 
 		// 打开原文件
-		const openOriginalBtn = actions.createEl('button');
+		const openOriginalBtn = actions.createEl('button', { cls: 'preview-action-button' });
 		openOriginalBtn.textContent = this.plugin.t('openOriginal');
 		openOriginalBtn.addEventListener('click', () => {
 			void this.plugin.openOriginalFile(file);
 		});
 
 		// 在笔记中查找
-		const findBtn = actions.createEl('button');
+		const findBtn = actions.createEl('button', { cls: 'preview-action-button' });
 		findBtn.textContent = this.plugin.t('findInNotes');
 		findBtn.addEventListener('click', () => {
 			this.close();

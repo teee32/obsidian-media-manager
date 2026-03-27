@@ -252,25 +252,28 @@ export class TrashManagementView extends ItemView {
 	 */
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'trash-header' });
-		header.createEl('h2', { text: this.plugin.t('trashManagement') });
+		const headerMain = header.createDiv({ cls: 'view-header-main' });
+		const titleBlock = headerMain.createDiv({ cls: 'view-header-copy' });
+		titleBlock.createEl('h2', { text: this.plugin.t('trashManagement') });
 
-		const desc = header.createDiv({ cls: 'header-description' });
+		const desc = titleBlock.createDiv({ cls: 'header-description' });
 		desc.createSpan({ text: this.plugin.t('trashManagementDesc') });
 
-		const actions = header.createDiv({ cls: 'header-actions' });
+		const actions = header.createDiv({ cls: 'view-header-controls' });
 
 		// 刷新按钮
-		const refreshBtn = actions.createEl('button', { cls: 'refresh-button' });
+		const refreshBtn = actions.createEl('button', { cls: 'refresh-button button-with-label' });
 		setIcon(refreshBtn, 'refresh-cw');
+		refreshBtn.createSpan({ cls: 'button-label', text: this.plugin.t('refresh') });
 		refreshBtn.addEventListener('click', () => {
 			this.loadTrashItems();
 		});
 		refreshBtn.title = this.plugin.t('refresh');
 
 		// 安全扫描按钮
-		const scanBtn = actions.createEl('button', { cls: 'action-button' });
+		const scanBtn = actions.createEl('button', { cls: 'action-button button-with-label' });
 		setIcon(scanBtn, 'shield-check');
-		scanBtn.createSpan({ text: ` ${this.plugin.t('safeScan')}` });
+		scanBtn.createSpan({ cls: 'button-label', text: this.plugin.t('safeScan') });
 		scanBtn.disabled = !this.plugin.settings.safeScanEnabled;
 		scanBtn.addEventListener('click', () => {
 			void this.runSafeScan();
@@ -278,8 +281,9 @@ export class TrashManagementView extends ItemView {
 		scanBtn.title = this.plugin.t('safeScanDesc');
 
 		// 清空隔离文件夹按钮
-		const clearAllBtn = actions.createEl('button', { cls: 'action-button danger' });
+		const clearAllBtn = actions.createEl('button', { cls: 'action-button danger button-with-label' });
 		setIcon(clearAllBtn, 'trash-2');
+		clearAllBtn.createSpan({ cls: 'button-label', text: this.plugin.t('clearTrash') });
 		clearAllBtn.addEventListener('click', () => {
 			void this.confirmClearAll();
 		});
@@ -370,6 +374,7 @@ export class TrashManagementView extends ItemView {
 	 */
 	renderTrashItem(container: HTMLElement, item: TrashItem) {
 		const itemEl = container.createDiv({ cls: `trash-item ${item.selected ? 'selected' : ''}` });
+		itemEl.title = item.path;
 
 		// 复选框
 		const checkbox = itemEl.createEl('input', {
@@ -394,8 +399,9 @@ export class TrashManagementView extends ItemView {
 
 		// 文件信息
 		const info = itemEl.createDiv({ cls: 'item-info' });
-		info.createDiv({ cls: 'item-name', text: item.name });
-		info.createSpan({
+		const header = info.createDiv({ cls: 'item-head' });
+		header.createDiv({ cls: 'item-name', text: item.name });
+		header.createSpan({
 			cls: 'item-type-badge',
 			text: this.getTypeLabel(item.name)
 		});

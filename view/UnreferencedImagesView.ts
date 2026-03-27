@@ -139,28 +139,34 @@ export class UnreferencedImagesView extends ItemView {
 
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'unreferenced-header' });
+		const headerMain = header.createDiv({ cls: 'view-header-main' });
+		const titleBlock = headerMain.createDiv({ cls: 'view-header-copy' });
 
-		header.createEl('h2', { text: this.plugin.t('unreferencedMedia') });
+		titleBlock.createEl('h2', { text: this.plugin.t('unreferencedMedia') });
 
-		const desc = header.createDiv({ cls: 'header-description' });
+		const desc = titleBlock.createDiv({ cls: 'header-description' });
 		desc.createSpan({ text: this.plugin.t('unreferencedDesc') });
 
-		// 重新扫描按钮
-		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
+		// 操作按钮
+		const actions = header.createDiv({ cls: 'view-header-controls' });
+
+		const refreshBtn = actions.createEl('button', { cls: 'refresh-button button-with-label' });
 		setIcon(refreshBtn, 'refresh-cw');
+		refreshBtn.createSpan({ cls: 'button-label', text: this.plugin.t('refresh') });
 		refreshBtn.addEventListener('click', () => {
 			void this.scanUnreferencedImages();
 		});
 
-		// 批量操作按钮
-		const actions = header.createDiv({ cls: 'header-actions' });
+		const bulkActions = actions.createDiv({ cls: 'view-control-cluster' });
 
-		const copyAllBtn = actions.createEl('button', { cls: 'action-button' });
+		const copyAllBtn = bulkActions.createEl('button', { cls: 'action-button button-with-label' });
 		setIcon(copyAllBtn, 'copy');
+		copyAllBtn.createSpan({ cls: 'button-label', text: this.plugin.t('copyAllPaths') });
 		copyAllBtn.addEventListener('click', () => this.copyAllPaths());
 
-		const deleteAllBtn = actions.createEl('button', { cls: 'action-button danger' });
+		const deleteAllBtn = bulkActions.createEl('button', { cls: 'action-button danger button-with-label' });
 		setIcon(deleteAllBtn, 'trash-2');
+		deleteAllBtn.createSpan({ cls: 'button-label', text: this.plugin.t('delete') });
 		deleteAllBtn.addEventListener('click', () => this.confirmDeleteAll());
 	}
 
@@ -227,6 +233,7 @@ export class UnreferencedImagesView extends ItemView {
 
 	renderImageItem(container: HTMLElement, image: UnreferencedImage) {
 		const item = container.createDiv({ cls: 'unreferenced-item' });
+		item.title = image.path;
 
 		// 图片缩略图
 		const thumbnail = item.createDiv({ cls: 'item-thumbnail' });
@@ -234,9 +241,19 @@ export class UnreferencedImagesView extends ItemView {
 
 		// 图片信息
 		const info = item.createDiv({ cls: 'item-info' });
-		info.createDiv({ cls: 'item-name', text: image.name });
+		const header = info.createDiv({ cls: 'item-head' });
+		header.createDiv({ cls: 'item-name', text: image.name });
+		header.createSpan({
+			cls: 'item-type-badge',
+			text: image.file.extension.toUpperCase()
+		});
 		info.createDiv({ cls: 'item-path', text: image.path });
-		info.createDiv({ cls: 'item-size', text: formatFileSize(image.size) });
+		const meta = info.createDiv({ cls: 'item-meta' });
+		meta.createDiv({ cls: 'item-size', text: formatFileSize(image.size) });
+		meta.createDiv({
+			cls: 'item-date',
+			text: new Date(image.modified).toLocaleDateString()
+		});
 
 		// 操作按钮
 		const actions = item.createDiv({ cls: 'item-actions' });
@@ -244,6 +261,7 @@ export class UnreferencedImagesView extends ItemView {
 		// 在笔记中查找按钮
 		const findBtn = actions.createEl('button', { cls: 'item-button' });
 		setIcon(findBtn, 'search');
+		findBtn.title = this.plugin.t('findInNotes');
 		findBtn.addEventListener('click', () => {
 			void this.plugin.openImageInNotes(image.file);
 		});
@@ -251,6 +269,7 @@ export class UnreferencedImagesView extends ItemView {
 		// 复制路径按钮
 		const copyBtn = actions.createEl('button', { cls: 'item-button' });
 		setIcon(copyBtn, 'link');
+		copyBtn.title = this.plugin.t('copyPath');
 		copyBtn.addEventListener('click', () => {
 			void navigator.clipboard.writeText(image.path).then(() => {
 				new Notice(this.plugin.t('pathCopied'));
@@ -263,6 +282,7 @@ export class UnreferencedImagesView extends ItemView {
 		// 删除按钮
 		const deleteBtn = actions.createEl('button', { cls: 'item-button danger' });
 		setIcon(deleteBtn, 'trash-2');
+		deleteBtn.title = this.plugin.t('delete');
 		deleteBtn.addEventListener('click', () => {
 			this.confirmDelete(image);
 		});

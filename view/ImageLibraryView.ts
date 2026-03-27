@@ -191,8 +191,13 @@ export class ImageLibraryView extends ItemView {
 	 */
 	renderSearchBox() {
 		const searchContainer = this.contentEl.createDiv({ cls: 'search-container' });
+		const searchField = searchContainer.createDiv({ cls: 'search-field' });
 
-		this.searchInput = searchContainer.createEl('input', {
+		// 搜索图标
+		const searchIcon = searchField.createDiv({ cls: 'search-icon' });
+		setIcon(searchIcon, 'search');
+
+		this.searchInput = searchField.createEl('input', {
 			type: 'text',
 			cls: 'search-input',
 			attr: {
@@ -201,13 +206,9 @@ export class ImageLibraryView extends ItemView {
 			}
 		});
 
-		// 搜索图标
-		const searchIcon = searchContainer.createDiv({ cls: 'search-icon' });
-		setIcon(searchIcon, 'search');
-
 		// 清除搜索按钮
 		if (this.searchQuery) {
-			const clearBtn = searchContainer.createEl('button', { cls: 'clear-search' });
+			const clearBtn = searchField.createEl('button', { cls: 'clear-search' });
 			setIcon(clearBtn, 'x');
 			clearBtn.addEventListener('click', () => {
 				this.searchQuery = '';
@@ -232,7 +233,8 @@ export class ImageLibraryView extends ItemView {
 
 		// 显示结果计数
 		if (this.searchQuery) {
-			searchContainer.createSpan({
+			const searchMeta = searchContainer.createDiv({ cls: 'search-meta' });
+			searchMeta.createSpan({
 				text: this.plugin.t('searchResults').replace('{count}', String(this.filteredImages.length)),
 				cls: 'search-results-count'
 			});
@@ -252,6 +254,7 @@ export class ImageLibraryView extends ItemView {
 
 		const selectAllBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
 		setIcon(selectAllBtn, 'check-square');
+		selectAllBtn.createSpan({ cls: 'button-label', text: this.plugin.t('selectAll') });
 		selectAllBtn.addEventListener('click', () => {
 			this.filteredImages.forEach(img => this.selectedFiles.add(img.file.path));
 			void this.refreshImages();
@@ -259,6 +262,7 @@ export class ImageLibraryView extends ItemView {
 
 		const deselectAllBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
 		setIcon(deselectAllBtn, 'square');
+		deselectAllBtn.createSpan({ cls: 'button-label', text: this.plugin.t('deselectAll') });
 		deselectAllBtn.addEventListener('click', () => {
 			this.selectedFiles.clear();
 			void this.refreshImages();
@@ -266,6 +270,7 @@ export class ImageLibraryView extends ItemView {
 
 		const deleteSelectedBtn = toolbar.createEl('button', { cls: 'toolbar-button danger' });
 		setIcon(deleteSelectedBtn, 'trash-2');
+		deleteSelectedBtn.createSpan({ cls: 'button-label', text: this.plugin.t('delete') });
 		deleteSelectedBtn.addEventListener('click', () => {
 			void this.deleteSelected();
 		});
@@ -273,6 +278,7 @@ export class ImageLibraryView extends ItemView {
 		// 整理按钮
 		const organizeBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
 		setIcon(organizeBtn, 'folder-input');
+		organizeBtn.createSpan({ cls: 'button-label', text: this.plugin.t('organizing') });
 		organizeBtn.title = this.plugin.t('organizing');
 		organizeBtn.addEventListener('click', () => {
 			void this.organizeSelected();
@@ -281,6 +287,7 @@ export class ImageLibraryView extends ItemView {
 		// 压缩按钮
 		const processBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
 		setIcon(processBtn, 'image-down');
+		processBtn.createSpan({ cls: 'button-label', text: this.plugin.t('processing') });
 		processBtn.title = this.plugin.t('processing');
 		processBtn.addEventListener('click', () => {
 			void this.processSelected();
@@ -288,6 +295,7 @@ export class ImageLibraryView extends ItemView {
 
 		const exitSelectionBtn = toolbar.createEl('button', { cls: 'toolbar-button' });
 		setIcon(exitSelectionBtn, 'x');
+		exitSelectionBtn.createSpan({ cls: 'button-label', text: this.plugin.t('cancel') });
 		exitSelectionBtn.addEventListener('click', () => {
 			this.isSelectionMode = false;
 			this.selectedFiles.clear();
@@ -401,22 +409,38 @@ export class ImageLibraryView extends ItemView {
 
 	renderHeader() {
 		const header = this.contentEl.createDiv({ cls: 'image-library-header' });
+		const headerMain = header.createDiv({ cls: 'view-header-main' });
+		const titleBlock = headerMain.createDiv({ cls: 'view-header-copy' });
 
-		header.createEl('h2', { text: this.plugin.t('mediaLibrary') });
+		titleBlock.createEl('h2', { text: this.plugin.t('mediaLibrary') });
 
-		const stats = header.createDiv({ cls: 'image-stats' });
+		const stats = titleBlock.createDiv({ cls: 'image-stats' });
 		stats.createSpan({ text: this.plugin.t('totalMediaFiles').replace('{count}', String(this.filteredImages.length)) });
+		if (this.searchQuery) {
+			stats.createSpan({
+				cls: 'view-inline-badge',
+				text: this.plugin.t('searchResults').replace('{count}', String(this.filteredImages.length))
+			});
+		}
+
+		const controls = header.createDiv({ cls: 'view-header-controls' });
+		const primaryActions = controls.createDiv({ cls: 'view-control-cluster' });
 
 		// 刷新按钮
-		const refreshBtn = header.createEl('button', { cls: 'refresh-button' });
+		const refreshBtn = primaryActions.createEl('button', { cls: 'refresh-button button-with-label' });
 		setIcon(refreshBtn, 'refresh-cw');
+		refreshBtn.createSpan({ cls: 'button-label', text: this.plugin.t('refresh') });
 		refreshBtn.addEventListener('click', () => {
 			void this.refreshImages();
 		});
 
 		// 多选模式按钮
-		const selectBtn = header.createEl('button', { cls: 'refresh-button' });
+		const selectBtn = primaryActions.createEl('button', { cls: 'action-button button-with-label' });
 		setIcon(selectBtn, 'check-square');
+		selectBtn.createSpan({
+			cls: 'button-label',
+			text: this.isSelectionMode ? this.plugin.t('cancel') : this.plugin.t('multiSelectMode')
+		});
 		selectBtn.addEventListener('click', () => {
 			this.isSelectionMode = !this.isSelectionMode;
 			if (!this.isSelectionMode) {
@@ -427,7 +451,8 @@ export class ImageLibraryView extends ItemView {
 		selectBtn.title = this.plugin.t('multiSelectMode');
 
 		// 排序选项
-		const sortSelect = header.createEl('select', { cls: 'sort-select' });
+		const sortControls = controls.createDiv({ cls: 'view-control-cluster view-control-cluster-tight' });
+		const sortSelect = sortControls.createEl('select', { cls: 'sort-select' });
 		const options = [
 			{ value: 'name', text: this.plugin.t('sortByName') },
 			{ value: 'date', text: this.plugin.t('sortByDate') },
@@ -451,7 +476,7 @@ export class ImageLibraryView extends ItemView {
 		});
 
 		// 顺序切换
-		const orderBtn = header.createEl('button', { cls: 'order-button' });
+		const orderBtn = sortControls.createEl('button', { cls: 'order-button button-with-label' });
 		orderBtn.addEventListener('click', () => {
 			void (async () => {
 				this.plugin.settings.sortOrder = this.plugin.settings.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -462,6 +487,10 @@ export class ImageLibraryView extends ItemView {
 			})();
 		});
 		setIcon(orderBtn, this.plugin.settings.sortOrder === 'asc' ? 'arrow-up' : 'arrow-down');
+		orderBtn.createSpan({
+			cls: 'button-label',
+			text: this.plugin.settings.sortOrder === 'asc' ? this.plugin.t('sortAsc') : this.plugin.t('sortDesc')
+		});
 	}
 
 	sortImages() {
@@ -581,7 +610,9 @@ export class ImageLibraryView extends ItemView {
 	}
 
 	renderImageItem(container: HTMLElement, image: ImageItem) {
-		const item = container.createDiv({ cls: 'image-item' });
+		const isSelected = this.selectedFiles.has(image.file.path);
+		const item = container.createDiv({ cls: `image-item${isSelected ? ' is-selected' : ''}` });
+		item.title = image.path;
 
 		// 如果在选择模式下，添加复选框
 		if (this.isSelectionMode) {
@@ -630,8 +661,19 @@ export class ImageLibraryView extends ItemView {
 		// 显示图片信息
 		if (this.plugin.settings.showImageInfo) {
 			const info = item.createDiv({ cls: 'image-info' });
-			info.createDiv({ cls: 'image-name', text: image.name });
-			info.createDiv({ cls: 'image-size', text: formatFileSize(image.size) });
+			const infoTop = info.createDiv({ cls: 'image-info-top' });
+			infoTop.createDiv({ cls: 'image-name', text: image.name });
+			infoTop.createSpan({
+				cls: 'item-type-badge',
+				text: image.file.extension.toUpperCase()
+			});
+
+			const meta = info.createDiv({ cls: 'image-meta' });
+			meta.createDiv({ cls: 'image-size', text: formatFileSize(image.size) });
+			meta.createDiv({
+				cls: 'image-date',
+				text: new Date(image.modified).toLocaleDateString()
+			});
 		}
 	}
 
